@@ -1,0 +1,32 @@
+{
+  "name": "@securityai/sdk",
+  "version": "0.1.0",
+  "description": "SecurityAI SDK - Capture and send security events to your backend",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "bun run tsc",
+    "dev": "bun run tsc --watch",
+    "test": "bun test",
+    "prepublish": "bun run build"
+  },
+  "keywords": [
+    "security",
+    "events",
+    "logging",
+    "sdk"
+  ],
+  "author": "SecurityAI Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

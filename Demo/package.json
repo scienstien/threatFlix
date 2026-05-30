@@ -1,0 +1,34 @@
+{
+  "name": "@securityai/demo",
+  "version": "0.1.0",
+  "description": "SecurityAI Demo - Attack scenarios, MITRE mapping, and demo runner",
+  "main": "runner.ts",
+  "type": "module",
+  "scripts": {
+    "demo": "bun run runner.ts --all",
+    "demo:brute-force": "bun run runner.ts --scenario brute-force",
+    "demo:lateral": "bun run runner.ts --scenario lateral-movement",
+    "demo:escalation": "bun run runner.ts --scenario escalation",
+    "demo:stuffing": "bun run runner.ts --scenario credential-stuffing",
+    "demo:suspicious": "bun run runner.ts --scenario suspicious-ip",
+    "demo:custom": "bun run runner.ts",
+    "build": "bun run tsc",
+    "dev": "bun run --watch runner.ts"
+  },
+  "keywords": [
+    "security",
+    "demo",
+    "attack",
+    "mitre",
+    "hackathon"
+  ],
+  "author": "SecurityAI Team - Member D",
+  "license": "MIT",
+  "dependencies": {
+    "@securityai/sdk": "file:../SDK"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

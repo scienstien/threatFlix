@@ -1,0 +1,7 @@
+[build]
+root = "src"
+outdir = "dist"
+target = "browser"
+
+[preload]
+# Add any runtime configurations here

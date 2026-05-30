@@ -1,0 +1,29 @@
+# SDK .gitignore
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+bun.lock
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Development
+.DS_Store
+*.log
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Environment
+.env
+.env.local
+.env.*.local
