@@ -1,1 +1,15 @@
-./SecurityAI_Detailed_Hackathon_Plan.pdf
+# Secrets
+.env
+
+# Dependencies — never commit these, run bun/npm install instead
+**/node_modules/
+
+# Database files — local state, not for version control
+Backend/data/
+
+# Build output
+**/dist/
+
+# OS junk
+.DS_Store
+Thumbs.db

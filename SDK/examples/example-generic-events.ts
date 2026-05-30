@@ -8,9 +8,9 @@
 import SecurityAI from '../src/index';
 
 const security = new SecurityAI({
-  apiKey: 'demo-api-key-12345',
+  apiKey: 'demo-key',
   projectId: 'demo-project',
-  backendUrl: 'http://localhost:3000'
+  backendUrl: 'http://localhost:8000'
 });
 
 // Example: Generic log event

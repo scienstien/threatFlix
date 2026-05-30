@@ -12,9 +12,9 @@ import SecurityAI from '../src/index';
 
 // Initialize the SDK
 const security = new SecurityAI({
-  apiKey: 'demo-api-key-12345',
+  apiKey: 'demo-key',
   projectId: 'demo-project',
-  backendUrl: 'http://localhost:3000',
+  backendUrl: 'http://localhost:8000',
   appVersion: '1.0.0',
   hostname: 'app-server-01'
 });

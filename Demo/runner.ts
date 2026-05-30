@@ -37,7 +37,7 @@ interface DemoOptions {
 function parseArgs(): DemoOptions {
   const args = process.argv.slice(2);
   const options: DemoOptions = {
-    backend: 'http://localhost:3000',
+    backend: 'http://localhost:8000',
     all: false,
     verbose: true,
     delay: 1000
@@ -75,8 +75,8 @@ async function runDemo(options: DemoOptions) {
 
   // Initialize SDK
   const security = new SecurityAI({
-    apiKey: 'demo-api-key-12345',
-    projectId: 'demo-project-hackathon',
+    apiKey: 'demo-key',
+    projectId: 'demo-project',
     backendUrl: options.backend,
     appVersion: '1.0.0',
     hostname: 'demo-machine'
@@ -137,7 +137,7 @@ function printUsage() {
 Usage: bun run runner.ts [OPTIONS]
 
 Options:
-  --backend <url>        Backend URL (default: http://localhost:3000)
+  --backend <url>        Backend URL (default: http://localhost:8000)
   --scenario <name>      Run specific scenario:
                          - brute-force
                          - lateral-movement
@@ -220,8 +220,8 @@ export const EXPECTED_OUTPUTS = {
   }
 };
 
-// Run if executed directly
-if (require.main === module) {
+// Run if executed directly (Bun ESM equivalent of require.main === module)
+if (import.meta.main) {
   const options = parseArgs();
   runDemo(options);
 }

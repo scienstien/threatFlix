@@ -24,11 +24,28 @@ export interface AuthContext {
 // 1. SDK API Key authentication
 // ---------------------------------------------------------------------------
 
-/** Resolve an API key to a projectId. Returns null if invalid. */
+/** Resolve an API key to a projectId. Returns null if invalid.
+ *
+ *  Accepted formats (in priority order):
+ *  1. X-API-Key: <key>              (our preferred header)
+ *  2. Authorization: Bearer <key>   (SDK default — checked ONLY if the value
+ *                                    matches a known API key, not a JWT)
+ *  3. ?apiKey=<key>                 (query-string fallback)
+ */
 export function authenticateApiKey(request: Request): AuthContext | null {
-  const key =
+  let key =
     request.headers.get("X-API-Key") ??
     new URL(request.url).searchParams.get("apiKey");
+
+  // Also accept Authorization: Bearer <token> — but only if it looks like
+  // an API key (i.e. it resolves to a project). JWTs are handled separately
+  // by authenticateJwt(), so there is no collision.
+  if (!key) {
+    const authHeader = request.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      key = authHeader.slice(7);
+    }
+  }
 
   if (!key) return null;
 
