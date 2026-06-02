@@ -13,3 +13,4 @@ Backend/data/
 # OS junk
 .DS_Store
 Thumbs.db
+Backend/.env
