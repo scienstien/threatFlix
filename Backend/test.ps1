@@ -11,7 +11,7 @@ try {
 
 Write-Host "`n=== TEST 2: POST /auth/login (admin) ==="
 try {
-    $loginBody = '{"email":"admin@threatflix.dev","password":"admin123"}'
+    $loginBody = '{"email":"demo@threatflix.dev","password":"demo123"}'
     $loginResult = Invoke-RestMethod -Uri http://localhost:8000/auth/login -Method Post -Body $loginBody -ContentType "application/json"
     $loginResult | ConvertTo-Json -Depth 5
     $token = $loginResult.token

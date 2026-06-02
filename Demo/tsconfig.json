@@ -2,8 +2,8 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "lib": ["ESNext"],
-    "types": ["bun-types"],
+    "lib": ["ESNext", "DOM"],
+    "types": ["bun-types", "node"],
     "declaration": true,
     "outDir": "./dist",
     "strict": true,

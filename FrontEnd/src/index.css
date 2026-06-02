@@ -1,50 +1,299 @@
 @import "tailwindcss";
 
+/* ============================================================
+   ThreatFlix — "Ember Noir" Design System
+   ============================================================ */
+
 @layer base {
   :root {
-    @apply text-[rgba(255,255,255,0.87)] bg-[#242424] font-sans;
+    /* --- Backgrounds (Smoky Charcoal) --- */
+    --bg-deep: #1a1410;
+    --bg-surface: #231e18;
+    --bg-elevated: #2d2620;
+    --bg-hover: #3a3128;
+
+    /* --- Ember Accents --- */
+    --ember-hot: #ff6b35;
+    --ember-warm: #e8943a;
+    --ember-glow: #ffb347;
+    --ember-ash: #c4956a;
+
+    /* --- Severity Scale --- */
+    --severity-critical: #ff4d4d;
+    --severity-high: #ff6b35;
+    --severity-medium: #e8943a;
+    --severity-low: #7eb87e;
+    --severity-info: #6b9dbd;
+
+    /* --- Text --- */
+    --text-primary: #f5efe6;
+    --text-secondary: #b0a89e;
+    --text-muted: #7a7268;
+
+    /* --- Glass --- */
+    --glass-bg: rgba(35, 30, 24, 0.6);
+    --glass-border: rgba(196, 149, 106, 0.15);
+    --glass-shine: rgba(255, 179, 71, 0.05);
+
+    /* --- Fonts --- */
+    --font-primary: 'Outfit', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+    /* --- Transitions --- */
+    --transition-fast: 0.15s ease-out;
+    --transition-base: 0.3s ease-out;
+    --transition-slow: 0.6s ease-out;
+
+    /* --- Radii --- */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    @apply grid place-items-center min-w-[320px] min-h-screen relative m-0;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: var(--font-primary);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg-deep);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--bg-hover);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ember-ash);
+  }
+
+  /* Selection */
+  ::selection {
+    background: rgba(255, 107, 53, 0.3);
+    color: var(--text-primary);
   }
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  opacity: 0.05;
-  background: url("./logo.svg");
-  background-size: 256px;
-  transform: rotate(-12deg) scale(1.35);
-  animation: slide 30s linear infinite;
+/* ============================================================
+   Glass Components
+   ============================================================ */
+
+.glass-light {
+  background: rgba(35, 30, 24, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-medium {
+  background: rgba(35, 30, 24, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(196, 149, 106, 0.2);
+}
+
+.glass-heavy {
+  background: rgba(26, 20, 16, 0.85);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(196, 149, 106, 0.25);
+}
+
+.glass-card {
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 var(--glass-shine);
+}
+
+/* ============================================================
+   Typography
+   ============================================================ */
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.text-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   Severity Badges
+   ============================================================ */
+
+.severity-critical {
+  --severity-color: var(--severity-critical);
+}
+.severity-high {
+  --severity-color: var(--severity-high);
+}
+.severity-medium {
+  --severity-color: var(--severity-medium);
+}
+.severity-low {
+  --severity-color: var(--severity-low);
+}
+.severity-info {
+  --severity-color: var(--severity-info);
+}
+
+.severity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--severity-color);
+  background: color-mix(in srgb, var(--severity-color) 15%, transparent);
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+
+/* Sonar pulse for critical alerts */
+@keyframes sonar {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.sonar-pulse {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--severity-color, var(--severity-critical));
+  animation: sonar 3s ease-out infinite;
   pointer-events: none;
 }
 
-@keyframes slide {
-  from {
-    background-position: 0 0;
+/* Connected indicator pulse */
+@keyframes pulse-dot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
   }
-  to {
-    background-position: 256px 224px;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0);
-  }
-  to {
-    transform: rotate(360deg);
+  50% {
+    transform: scale(1.4);
+    opacity: 0.5;
   }
 }
 
-@media (prefers-reduced-motion) {
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Ember shimmer for loading skeletons */
+@keyframes ember-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface) 25%,
+    var(--bg-hover) 37%,
+    var(--bg-surface) 63%
+  );
+  background-size: 200% 100%;
+  animation: ember-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* Typewriter cursor */
+@keyframes blink-cursor {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.typewriter-cursor::after {
+  content: '▊';
+  color: var(--ember-hot);
+  animation: blink-cursor 1s step-end infinite;
+  margin-left: 2px;
+}
+
+/* Scan line */
+@keyframes scan-line {
+  0% { top: 0; opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Spark dot pulse for logo */
+@keyframes spark-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+}
+
+.spark-dot {
+  display: inline-block;
+  color: var(--ember-hot);
+  animation: spark-pulse 2.5s ease-in-out infinite;
+}
+
+/* ============================================================
+   Reduced Motion
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
   *,
-  ::before,
-  ::after {
-    animation: none !important;
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

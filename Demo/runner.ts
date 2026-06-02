@@ -221,7 +221,7 @@ export const EXPECTED_OUTPUTS = {
 };
 
 // Run if executed directly (Bun ESM equivalent of require.main === module)
-if (import.meta.main) {
+if ((import.meta as any).main) {
   const options = parseArgs();
   runDemo(options);
 }
