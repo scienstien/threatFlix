@@ -16,3 +16,5 @@ Thumbs.db
 Backend/.env
 CONTRACT_ISSUES.md
 Backend/.env
+Backend/data/threatflix.db-shm
+Backend/data/threatflix.db-shm
