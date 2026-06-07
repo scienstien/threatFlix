@@ -20,13 +20,13 @@ adminRouter.get("/stats", async (req, res) => {
   const totalApiKeys =
     (db.query("SELECT COUNT(*) as c FROM api_keys WHERE revoked = 0").get() as any)?.c ?? 0;
 
+  const totalAlerts = Object.values(alertsBySeverity).reduce((sum, count) => sum + count, 0);
+
   return res.json({
     totalEvents,
-    totalUsers,
-    totalApiKeys,
-    eventsByProject,
-    alertsBySeverity,
-    recentAlerts,
+    totalTenants: totalApiKeys,
+    totalAlerts,
+    severityDistribution: alertsBySeverity,
   });
 });
 

@@ -73,11 +73,11 @@ ThreatFlix operates as a closed-loop detection pipeline in **four stages**:
 ```
   ╔══════════════════╗      ╔══════════════════╗      ╔══════════════════╗      ╔══════════════════╗
   ║   1. CAPTURE     ║      ║   2. INGEST      ║      ║   3. ANALYZE     ║      ║   4. ALERT       ║
-  ║                  ║      ║                  ║      ║                  ║      ║                  ║
-  ║  Your app uses   ║─────▶║  Backend stores   ║─────▶║  Gemini AI       ║─────▶║  Dashboard shows ║
-  ║  the SDK to emit ║      ║  events in SQLite ║      ║  detects attacks ║      ║  live alerts     ║
-  ║  security events ║      ║  and builds a     ║      ║  and maps to     ║      ║  with MITRE      ║
-  ║                  ║      ║  timeline         ║      ║  MITRE ATT&CK    ║      ║  context         ║
+  ║                  ║      ║                  ║      ║  Our specialised ║      ║                  ║
+  ║  Your app uses   ║─────▶║  Backend stores ║─────▶║   AI             ║────▶║  Dashboard shows ║
+  ║  the SDK to emit ║      ║  events in SQLite║      ║ detects attacks  ║      ║  live alerts     ║
+  ║  security events ║      ║  and builds a    ║      ║  and maps to     ║      ║  with MITRE      ║
+  ║                  ║      ║  timeline        ║      ║  MITRE ATT&CK    ║      ║  context         ║
   ╚══════════════════╝      ╚══════════════════╝      ╚══════════════════╝      ╚══════════════════╝
 ```
 
