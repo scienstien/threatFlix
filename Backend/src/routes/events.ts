@@ -86,5 +86,5 @@ eventsRouter.get("/latest", async (req, res) => {
   }
 
   const events = eventRepo.getLatest(projectId, limit);
-  return res.json({ events, count: events.length });
+  return res.json({ events, total: events.length });
 });
