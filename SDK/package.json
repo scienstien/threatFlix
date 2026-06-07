@@ -1,7 +1,14 @@
 {
-  "name": "@securityai/sdk",
-  "version": "0.1.0",
-  "description": "SecurityAI SDK - Capture and send security events to your backend",
+  "name": "@scienstien/threatflix-sdk",
+  "version": "0.0.1",
+  "description": "ThreatFlix SDK - Capture and send security events to your backend",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scienstien/threatFlix.git"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -21,9 +28,10 @@
     "security",
     "events",
     "logging",
-    "sdk"
+    "sdk",
+    "threatflix"
   ],
-  "author": "SecurityAI Team",
+  "author": "ThreatFlix Team",
   "license": "MIT",
   "devDependencies": {
     "typescript": "^5.0.0",
