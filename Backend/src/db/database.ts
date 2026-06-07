@@ -125,6 +125,13 @@ const MIGRATIONS: { version: number; name: string; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     `,
   },
+  {
+    version: 2,
+    name: "add_password_hash_to_users",
+    sql: `
+      ALTER TABLE users ADD COLUMN password_hash TEXT;
+    `,
+  },
 ];
 
 function runMigrations(database: Database): void {
@@ -153,15 +160,5 @@ function runMigrations(database: Database): void {
       "INSERT INTO _migrations (version, name, applied) VALUES (?, ?, ?)",
       [migration.version, migration.name, new Date().toISOString()]
     );
-  }
-
-  // Seed the demo API key if it doesn't exist
-  const existing = database.query("SELECT key FROM api_keys WHERE key = ?").get("demo-key");
-  if (!existing) {
-    database.run(
-      "INSERT INTO api_keys (key, project_id, label, created_at) VALUES (?, ?, ?, ?)",
-      ["demo-key", "demo-project", "Demo key (hackathon)", new Date().toISOString()]
-    );
-    console.log("  🔑 Seeded demo API key: demo-key → demo-project");
   }
 }

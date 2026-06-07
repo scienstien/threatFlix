@@ -1,55 +1,44 @@
-// ---------------------------------------------------------------------------
-// Analyze route — POST /analyze (manual trigger)
-// ---------------------------------------------------------------------------
-
-import { authenticateJwt, authenticateApiKey } from "../middleware/auth.ts";
+import { Router } from "express";
+import { authenticateApiKey, authenticateJwt } from "../middleware/auth.ts";
 import { analyzeEvents } from "../ai/analyzer.ts";
 import { eventRepo } from "../db/repositories/eventRepository.ts";
 
-/** POST /analyze — manually trigger AI analysis. Auth: JWT or API key. */
-export async function handleAnalyze(req: Request): Promise<Response> {
-  // Accept both JWT (dashboard) and API key (SDK) auth
-  const auth = (await authenticateJwt(req)) ?? authenticateApiKey(req);
+export const analyzeRouter = Router();
+
+analyzeRouter.post("/", async (req, res) => {
+  const auth = authenticateJwt(req) ?? authenticateApiKey(req);
   if (!auth) {
-    return Response.json({ error: "Authentication required." }, { status: 401 });
+    return res.status(401).json({ error: "Authentication required." });
   }
 
-  let body: any = {};
-  try {
-    body = await req.json();
-  } catch {
-    // Body is optional — will analyze latest unanalysed events
-  }
-
-  const projectId =
-    auth.role === "admin" && body.projectId
+  const body = req.body ?? {};
+  const requestedProjectId =
+    auth.role === "admin" && typeof body.projectId === "string"
       ? body.projectId
       : auth.projectId;
 
-  if (projectId === "__admin__" && !body.projectId) {
-    return Response.json({ error: "Specify projectId for admin analysis." }, { status: 400 });
+  if (requestedProjectId === "__admin__" && typeof body.projectId !== "string") {
+    return res.status(400).json({ error: "Specify projectId for admin analysis." });
   }
 
-  // If specific event IDs are provided, use those
   let events;
-  if (body.eventIds && Array.isArray(body.eventIds)) {
-    events = eventRepo.getByIds(projectId, body.eventIds);
+  if (Array.isArray(body.eventIds)) {
+    events = eventRepo.getByIds(requestedProjectId, body.eventIds);
     if (events.length === 0) {
-      return Response.json({ error: "No matching events found." }, { status: 404 });
+      return res.status(404).json({ error: "No matching events found." });
     }
   }
 
   try {
-    const alert = await analyzeEvents(projectId, events);
-    return Response.json({ alert }, { status: 200 });
-  } catch (err) {
-    const message = (err as Error).message;
+    const alert = await analyzeEvents(requestedProjectId, events);
+    return res.json({ alert });
+  } catch (error) {
+    const message = (error as Error).message;
 
-    // Rate limit errors
     if (message.includes("rate limit") || message.includes("Cooldown")) {
-      return Response.json({ error: message }, { status: 429 });
+      return res.status(429).json({ error: message });
     }
 
-    return Response.json({ error: message }, { status: 500 });
+    return res.status(500).json({ error: message });
   }
-}
+});

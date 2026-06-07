@@ -10,6 +10,8 @@
 
 import { config } from "../config.ts";
 import { getDb } from "../db/database.ts";
+import jwt from "jsonwebtoken";
+import type { Request as ExpressRequest, Response as ExpressResponse } from "express";
 
 export type Role = "admin" | "user";
 
@@ -32,28 +34,21 @@ export interface AuthContext {
  *                                    matches a known API key, not a JWT)
  *  3. ?apiKey=<key>                 (query-string fallback)
  */
-export function authenticateApiKey(request: Request): AuthContext | null {
-  let key =
-    request.headers.get("X-API-Key") ??
-    new URL(request.url).searchParams.get("apiKey");
+export function authenticateApiKey(req: ExpressRequest): AuthContext | null {
+  let key = (req.headers["x-api-key"] as string | undefined)
+    ?? (typeof req.query.apiKey === "string" ? req.query.apiKey : undefined);
 
   // Also accept Authorization: Bearer <token> — but only if it looks like
   // an API key (i.e. it resolves to a project). JWTs are handled separately
   // by authenticateJwt(), so there is no collision.
   if (!key) {
-    const authHeader = request.headers.get("Authorization");
+    const authHeader = req.headers.authorization;
     if (authHeader?.startsWith("Bearer ")) {
       key = authHeader.slice(7);
     }
   }
 
   if (!key) return null;
-
-  // Check hardcoded demo keys first
-  const demoProject = config.demoApiKeys[key];
-  if (demoProject) {
-    return { projectId: demoProject, role: "user" };
-  }
 
   // Check database
   const db = getDb();
@@ -70,65 +65,36 @@ export function authenticateApiKey(request: Request): AuthContext | null {
 // 2. JWT authentication (for dashboard)
 // ---------------------------------------------------------------------------
 
-/** Simple JWT implementation using Bun's built-in crypto.
- *  Forward-compat: replace with a proper JWT library or OAuth token verification. */
-
 interface JwtPayload {
   sub: string;          // user ID
   email: string;
   role: Role;
   projectId?: string;   // null for admins (they see everything)
-  iat: number;
-  exp: number;
 }
 
 /** Sign a JWT. */
-export async function signJwt(payload: Omit<JwtPayload, "iat" | "exp">): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const fullPayload: JwtPayload = {
-    ...payload,
-    iat: now,
-    exp: now + config.jwtExpiresIn,
-  };
-
-  const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const body = base64url(JSON.stringify(fullPayload));
-  const signature = await hmacSign(`${header}.${body}`);
-
-  return `${header}.${body}.${signature}`;
+export function signJwt(payload: JwtPayload): string {
+  return jwt.sign(payload, config.jwtSecret, {
+    expiresIn: config.jwtExpiresIn,
+  });
 }
 
 /** Verify and decode a JWT. Returns null if invalid/expired. */
-export async function verifyJwt(token: string): Promise<JwtPayload | null> {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-
-  const [header, body, signature] = parts as [string, string, string];
-
-  // Verify signature
-  const expected = await hmacSign(`${header}.${body}`);
-  if (signature !== expected) return null;
-
-  // Decode payload
+export function verifyJwt(token: string): JwtPayload | null {
   try {
-    const payload: JwtPayload = JSON.parse(base64urlDecode(body));
-
-    // Check expiration
-    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
-
-    return payload;
+    return jwt.verify(token, config.jwtSecret) as JwtPayload;
   } catch {
     return null;
   }
 }
 
 /** Authenticate a dashboard request via Bearer token. */
-export async function authenticateJwt(request: Request): Promise<AuthContext | null> {
-  const authHeader = request.headers.get("Authorization");
+export function authenticateJwt(req: ExpressRequest): AuthContext | null {
+  const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) return null;
 
   const token = authHeader.slice(7);
-  const payload = await verifyJwt(token);
+  const payload = verifyJwt(token);
   if (!payload) return null;
 
   return {
@@ -139,110 +105,30 @@ export async function authenticateJwt(request: Request): Promise<AuthContext | n
   };
 }
 
-// ---------------------------------------------------------------------------
-// Admin login (hackathon demo — email/password)
-// ---------------------------------------------------------------------------
-
-export interface LoginResult {
-  token: string;
-  role: Role;
-  email: string;
-  projectId?: string;
-}
-
-/** Authenticate admin or user login. */
-export async function loginWithCredentials(
-  email: string,
-  password: string
-): Promise<LoginResult | null> {
-  // Admin check
-  if (email === config.adminEmail && password === config.adminPassword) {
-    const token = await signJwt({
-      sub: "admin-001",
-      email,
-      role: "admin",
-    });
-    return { token, role: "admin", email };
+export function requireJwt(
+  req: ExpressRequest,
+  res: ExpressResponse
+): AuthContext | null {
+  const auth = authenticateJwt(req);
+  if (!auth) {
+    res.status(401).json({ error: "Authentication required." });
+    return null;
   }
 
-  // Forward-compat: check users table for regular user credentials
-  // (In production, this would be OAuth token exchange, not password check)
-  return null;
+  return auth;
 }
 
-/** Register or get a user via OAuth profile (forward-compat). */
-export async function loginWithOAuth(profile: {
-  email: string;
-  name: string;
-  provider: string;
-}): Promise<LoginResult> {
-  const db = getDb();
+export function requireAdmin(
+  req: ExpressRequest,
+  res: ExpressResponse
+): AuthContext | null {
+  const auth = requireJwt(req, res);
+  if (!auth) return null;
 
-  // Check if user exists
-  let user = db
-    .query("SELECT * FROM users WHERE email = ?")
-    .get(profile.email) as any;
-
-  if (!user) {
-    // Create user with a new project
-    const userId = crypto.randomUUID();
-    const projectId = `proj-${crypto.randomUUID().slice(0, 8)}`;
-
-    db.run(
-      "INSERT INTO users (id, email, name, role, project_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-      [userId, profile.email, profile.name, "user", projectId, new Date().toISOString()]
-    );
-
-    // Create an API key for the new project
-    const apiKey = `sk-${crypto.randomUUID().replace(/-/g, "")}`;
-    db.run(
-      "INSERT INTO api_keys (key, project_id, label, created_at) VALUES (?, ?, ?, ?)",
-      [apiKey, projectId, "Auto-generated", new Date().toISOString()]
-    );
-
-    user = { id: userId, email: profile.email, name: profile.name, role: "user", project_id: projectId };
+  if (auth.role !== "admin") {
+    res.status(403).json({ error: "Admin access required." });
+    return null;
   }
 
-  const token = await signJwt({
-    sub: user.id,
-    email: user.email,
-    role: user.role,
-    projectId: user.project_id,
-  });
-
-  return {
-    token,
-    role: user.role,
-    email: user.email,
-    projectId: user.project_id,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function base64url(str: string): string {
-  return Buffer.from(str)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-function base64urlDecode(str: string): string {
-  const padded = str + "=".repeat((4 - (str.length % 4)) % 4);
-  return Buffer.from(padded.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString();
-}
-
-async function hmacSign(data: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(config.jwtSecret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(data));
-  return base64url(String.fromCharCode(...new Uint8Array(sig)));
+  return auth;
 }

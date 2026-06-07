@@ -1,28 +1,14 @@
-// ---------------------------------------------------------------------------
-// Admin routes — GET /admin/stats, GET /admin/projects
-// ---------------------------------------------------------------------------
-
-import { authenticateJwt } from "../middleware/auth.ts";
+import { Router } from "express";
+import { requireAdmin } from "../middleware/auth.ts";
 import { eventRepo } from "../db/repositories/eventRepository.ts";
 import { alertRepo } from "../db/repositories/alertRepository.ts";
 import { getDb } from "../db/database.ts";
 
-/** Require admin role middleware. */
-async function requireAdmin(req: Request): Promise<Response | null> {
-  const auth = await authenticateJwt(req);
-  if (!auth) {
-    return Response.json({ error: "Authentication required." }, { status: 401 });
-  }
-  if (auth.role !== "admin") {
-    return Response.json({ error: "Admin access required." }, { status: 403 });
-  }
-  return null; // allowed
-}
+export const adminRouter = Router();
 
-/** GET /admin/stats — global platform statistics. */
-export async function handleAdminStats(req: Request): Promise<Response> {
-  const denied = await requireAdmin(req);
-  if (denied) return denied;
+adminRouter.get("/stats", async (req, res) => {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
 
   const totalEvents = eventRepo.countAll();
   const eventsByProject = eventRepo.countByProject();
@@ -31,9 +17,10 @@ export async function handleAdminStats(req: Request): Promise<Response> {
 
   const db = getDb();
   const totalUsers = (db.query("SELECT COUNT(*) as c FROM users").get() as any)?.c ?? 0;
-  const totalApiKeys = (db.query("SELECT COUNT(*) as c FROM api_keys WHERE revoked = 0").get() as any)?.c ?? 0;
+  const totalApiKeys =
+    (db.query("SELECT COUNT(*) as c FROM api_keys WHERE revoked = 0").get() as any)?.c ?? 0;
 
-  return Response.json({
+  return res.json({
     totalEvents,
     totalUsers,
     totalApiKeys,
@@ -41,19 +28,16 @@ export async function handleAdminStats(req: Request): Promise<Response> {
     alertsBySeverity,
     recentAlerts,
   });
-}
+});
 
-/** GET /admin/projects — list all projects with their stats. */
-export async function handleAdminProjects(req: Request): Promise<Response> {
-  const denied = await requireAdmin(req);
-  if (denied) return denied;
+adminRouter.get("/projects", async (req, res) => {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
 
   const db = getDb();
-
-  // Get all unique projects from api_keys
-  const projects = db
+  const rows = db
     .query(
-      `SELECT 
+      `SELECT
         ak.project_id,
         ak.label,
         ak.created_at,
@@ -68,13 +52,13 @@ export async function handleAdminProjects(req: Request): Promise<Response> {
     )
     .all() as any[];
 
-  return Response.json({
-    projects: projects.map((p: any) => ({
-      projectId: p.project_id,
-      label: p.label,
-      createdAt: p.created_at,
-      eventCount: p.event_count,
-      alertCount: p.alert_count,
-    })),
-  });
-}
+  const projects = rows.map((row) => ({
+    projectId: row.project_id,
+    label: row.label,
+    createdAt: row.created_at,
+    totalEvents: row.event_count,
+    totalAlerts: row.alert_count,
+  }));
+
+  return res.json({ projects });
+});

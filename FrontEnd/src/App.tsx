@@ -6,7 +6,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom"
 import { AuthProvider } from "./context/AuthContext";
 import { AppShell } from "./components/layout/AppShell";
 import { LoginPage } from "./pages/LoginPage";
-import { OAuthCallbackPage } from "./pages/OAuthCallbackPage";
+import { SignupPage } from "./pages/SignupPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { AdminPage } from "./pages/AdminPage";
 import "./index.css";
@@ -17,8 +17,8 @@ const router = createBrowserRouter([
     element: <LoginPage />,
   },
   {
-    path: "/auth/callback",
-    element: <OAuthCallbackPage />,
+    path: "/signup",
+    element: <SignupPage />,
   },
   {
     path: "/",
@@ -44,11 +44,15 @@ const router = createBrowserRouter([
   },
 ]);
 
+import { GoogleOAuthProvider } from "@react-oauth/google";
+
 export function App() {
   return (
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <GoogleOAuthProvider clientId="913174819290-ut5ag77u0s5cibi9sr0v7m32qqon969f.apps.googleusercontent.com">
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
 

@@ -15,12 +15,8 @@ export const config = {
   geminiApiKey: process.env.GEMINI_API_KEY ?? "",
   geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
 
-  /** Admin (hackathon demo) */
-  adminEmail: process.env.ADMIN_EMAIL ?? "admin@threatflix.dev",
-  adminPassword: process.env.ADMIN_PASSWORD ?? "admin123",
-
   /** JWT */
-  jwtSecret: process.env.JWT_SECRET ?? "threatflix-hackathon-secret-change-in-production",
+  jwtSecret: process.env.JWT_SECRET ?? "threatflix-app-secret-change-in-production",
   jwtExpiresIn: Number(process.env.JWT_EXPIRES_IN_SECONDS ?? 86400), // 24h
 
   /** Analysis rate limiting / batching */
@@ -33,10 +29,6 @@ export const config = {
   rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000),          // 1 min
   rateLimitMaxRequests: Number(process.env.RATE_LIMIT_MAX_REQUESTS ?? 200),
 
-  /** Demo API key mapping */
-  demoApiKeys: {
-    "demo-key": "demo-project",
-  } as Record<string, string>,
 } as const;
 
 export type Config = typeof config;

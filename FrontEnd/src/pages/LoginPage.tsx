@@ -1,172 +1,126 @@
-// ---------------------------------------------------------------------------
-// ThreatFlix — LoginPage
-// Full-screen login with ember particle background, magnetic card, typewriter
-// tagline, admin + OAuth login, and entrance animations.
-// ---------------------------------------------------------------------------
-
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE } from "../api/client";
+import { useGoogleLogin } from "@react-oauth/google";
 import { EmberParticleField } from "../components/ui/EmberParticleField";
 import { MagneticCard } from "../components/ui/MagneticCard";
 import { GlassCard } from "../components/ui/GlassCard";
 
+const authInputStyle: React.CSSProperties = {
+  background: "rgba(26, 20, 16, 0.7)",
+  border: "1px solid rgba(196, 149, 106, 0.25)",
+  color: "#f5efe6",
+  padding: "12px 14px",
+  borderRadius: "8px",
+  fontSize: "0.9rem",
+  fontFamily: "var(--font-primary)",
+  outline: "none",
+  width: "100%",
+  boxSizing: "border-box" as const,
+  transition: "border-color 0.2s ease",
+};
+
 export function LoginPage() {
-  const { loginAdmin, loginOAuth, isAuthenticated, isAdmin } = useAuth();
   const navigate = useNavigate();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const { login } = useAuth();
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(false);
 
-  const cardWrapperRef = useRef<HTMLDivElement>(null);
-  const taglineRef = useRef<HTMLSpanElement>(null);
-
-  // Redirect if already logged in (only happens after a successful login action)
-  const [hasLoggedIn, setHasLoggedIn] = useState(false);
-
-  useGSAP(() => {
-    if (hasLoggedIn && isAuthenticated) {
-      navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
-    }
-  }, { dependencies: [isAuthenticated, hasLoggedIn] });
-
-  // Entrance animation + typewriter
-  useGSAP(
-    () => {
-      if (!cardWrapperRef.current) return;
-
-      // Card entrance
-      gsap.fromTo(
-        cardWrapperRef.current,
-        { scale: 0.95, opacity: 0 },
-        { scale: 1, opacity: 1, duration: 0.8, ease: "power2.out" }
-      );
-
-      // Typewriter effect on the tagline
-      if (taglineRef.current) {
-        const text = taglineRef.current.textContent || "";
-        taglineRef.current.textContent = "";
-        taglineRef.current.style.visibility = "visible";
-
-        const chars = text.split("");
-        let html = "";
-        chars.forEach((char) => {
-          html += `<span style="opacity:0;display:inline-block">${char === " " ? "&nbsp;" : char}</span>`;
-        });
-        taglineRef.current.innerHTML = html;
-
-        const spans = taglineRef.current.querySelectorAll("span");
-        gsap.to(spans, {
-          opacity: 1,
-          duration: 0.02,
-          stagger: 0.045,
-          ease: "none",
-          delay: 0.6,
-        });
-      }
-    },
-    { scope: cardWrapperRef }
-  );
-
-  const handleAdminLogin = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    setError(null);
 
+    const emailEl = document.getElementById("login-email") as HTMLInputElement | null;
+    const passwordEl = document.getElementById("login-password") as HTMLInputElement | null;
+    
+    const email = emailEl?.value.trim() ?? "";
+    const password = passwordEl?.value ?? "";
+
+    if (!email || !password) {
+      setError("Email and password are required.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      await loginAdmin(email, password);
-      setHasLoggedIn(true);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Login failed. Please try again.";
-      setError(message);
+      const response = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data?.error ?? "Invalid credentials.");
+        return;
+      }
+
+      login({
+        token: data.token,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        projectId: data.projectId,
+      });
+
+      if (data.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch {
+      setError("Could not reach the server. Check your connection.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOAuthLogin = async () => {
-    setError("");
-    setOauthLoading(true);
+  const handleOAuthLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`${API_BASE}/auth/google`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken: tokenResponse.access_token }),
+        });
 
-    try {
-      // Open Google OAuth consent screen in a popup
-      const width = 500;
-      const height = 600;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
+        const data = await response.json();
 
-      const popup = window.open(
-        `https://accounts.google.com/o/oauth2/v2/auth?` +
-          `client_id=YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com` +
-          `&redirect_uri=${encodeURIComponent(window.location.origin + "/auth/callback")}` +
-          `&response_type=token` +
-          `&scope=${encodeURIComponent("email profile")}` +
-          `&prompt=select_account`,
-        "google-login",
-        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
-      );
-
-      // Listen for the popup to return with the OAuth token
-      const handleMessage = async (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
-        if (event.data?.type !== "oauth_callback") return;
-
-        window.removeEventListener("message", handleMessage);
-        popup?.close();
-
-        const { email: oauthEmail, name } = event.data;
-        if (oauthEmail && name) {
-          try {
-            await loginOAuth(oauthEmail, name);
-            setHasLoggedIn(true);
-          } catch (err: unknown) {
-            const message =
-              err instanceof Error ? err.message : "OAuth login failed.";
-            setError(message);
-          }
+        if (!response.ok) {
+          setError(data?.error ?? "OAuth login failed.");
+          return;
         }
-        setOauthLoading(false);
-      };
 
-      window.addEventListener("message", handleMessage);
+        login({
+          token: data.token,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          projectId: data.projectId,
+        });
 
-      // Timeout: if popup closed without completing
-      const pollTimer = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(pollTimer);
-          window.removeEventListener("message", handleMessage);
-          setOauthLoading(false);
+        if (data.role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
         }
-      }, 500);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "OAuth login failed.";
-      setError(message);
-      setOauthLoading(false);
-    }
-  };
-
-  // Shared input styles
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "12px 16px",
-    background: "var(--bg-deep)",
-    border: "1px solid var(--glass-border)",
-    borderRadius: "var(--radius-sm)",
-    color: "var(--text-primary)",
-    fontFamily: "var(--font-primary)",
-    fontSize: "0.9rem",
-    outline: "none",
-    transition: "border-color var(--transition-fast)",
-  };
+      } catch {
+        setError("Could not reach the server during OAuth.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: () => {
+      setError("Google Login failed or was cancelled.");
+    },
+  });
 
   return (
+    <>
     <div
       style={{
         minHeight: "100vh",
@@ -177,18 +131,16 @@ export function LoginPage() {
         overflow: "hidden",
       }}
     >
-      {/* Background */}
+      <style>{`
+        .auth-input::placeholder { color: rgba(196, 149, 106, 0.55); }
+        .auth-input:focus { border-color: rgba(232, 148, 58, 0.6); box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.12); }
+      `}</style>
       <EmberParticleField />
 
-      {/* Login card */}
-      <div
-        ref={cardWrapperRef}
-        style={{ position: "relative", zIndex: 10, opacity: 0 }}
-      >
-        <MagneticCard intensity={0.5}>
+      <div style={{ position: "relative", zIndex: 10 }}>
+        <MagneticCard intensity={0.3}>
           <GlassCard level="heavy" glow style={{ padding: "40px", width: "420px", maxWidth: "90vw" }}>
-            {/* Wordmark */}
-            <div style={{ textAlign: "center", marginBottom: "8px" }}>
+            <div style={{ textAlign: "center", marginBottom: "12px" }}>
               <span
                 style={{
                   fontFamily: "var(--font-primary)",
@@ -215,239 +167,127 @@ export function LoginPage() {
               >
                 FLIX
               </span>
-              <span
-                className="spark-dot"
-                style={{ fontSize: "0.6rem", marginLeft: "3px" }}
-              >
-                ●
-              </span>
             </div>
 
-            {/* Tagline with typewriter */}
-            <div
-              style={{
-                textAlign: "center",
-                marginBottom: "32px",
-                minHeight: "1.6em",
-              }}
-            >
-              <span
-                ref={taglineRef}
-                className="typewriter-cursor"
+            <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 14 }}>
+              <form onSubmit={handleSignIn} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <input
+                    id="login-email"
+                    className="auth-input"
+                    type="text"
+                    placeholder="Email"
+                    style={authInputStyle}
+                  />
+                  <input
+                    id="login-password"
+                    className="auth-input"
+                    type="password"
+                    placeholder="Password"
+                    style={authInputStyle}
+                  />
+                  
+                  {error && (
+                    <p
+                      style={{
+                        color: "var(--severity-critical)",
+                        fontSize: "0.82rem",
+                        margin: 0,
+                        textAlign: "left",
+                        padding: "8px 12px",
+                        background: "rgba(255, 77, 77, 0.1)",
+                        border: "1px solid rgba(255, 77, 77, 0.25)",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      background: loading 
+                        ? "var(--bg-elevated)" 
+                        : "linear-gradient(135deg, var(--ember-hot), var(--ember-warm))",
+                      color: loading ? "var(--text-muted)" : "white",
+                      border: "none",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      fontWeight: 600,
+                      fontSize: "0.95rem",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      transition: "var(--transition-fast)",
+                    }}
+                  >
+                    {loading ? "Signing in..." : "Sign In"}
+                  </button>
+                </div>
+              </form>
+
+              {/* ---- Divider ---- */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1, height: 1, background: "var(--glass-border)" }} />
+                <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.1em" }}>or</span>
+                <div style={{ flex: 1, height: 1, background: "var(--glass-border)" }} />
+              </div>
+
+              {/* ---- OAuth Login ---- */}
+              <button
+                type="button"
+                onClick={() => handleOAuthLogin()}
                 style={{
-                  color: "var(--text-secondary)",
-                  fontSize: "0.9rem",
-                  fontWeight: 300,
-                  visibility: "hidden",
+                  background: "var(--bg-elevated)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--glass-border)",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  transition: "var(--transition-fast)",
                 }}
               >
-                Your security, in cinematic clarity
-              </span>
-            </div>
+                <svg width="18" height="18" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M47.532 24.552c0-1.636-.132-3.2-.388-4.704H24.48v8.896h12.984c-.56 3.016-2.256 5.572-4.804 7.284v6.052h7.776c4.548-4.188 7.096-10.36 7.096-17.528z" fill="#4285F4"/>
+                  <path d="M24.48 48c6.516 0 11.984-2.16 15.98-5.856l-7.776-6.052c-2.16 1.448-4.924 2.308-8.204 2.308-6.308 0-11.648-4.26-13.556-9.988H3.008v6.244C6.988 42.82 15.16 48 24.48 48z" fill="#34A853"/>
+                  <path d="M10.924 28.412A14.88 14.88 0 0 1 10.16 24c0-1.532.264-3.02.764-4.412v-6.244H3.008A23.956 23.956 0 0 0 .48 24c0 3.868.928 7.528 2.528 10.656l7.916-6.244z" fill="#FBBC05"/>
+                  <path d="M24.48 9.6c3.556 0 6.748 1.224 9.264 3.628l6.944-6.944C36.456 2.392 30.988 0 24.48 0 15.16 0 6.988 5.18 3.008 13.344l7.916 6.244C12.832 13.86 18.172 9.6 24.48 9.6z" fill="#EA4335"/>
+                </svg>
+                Continue with OAuth
+              </button>
 
-            {/* Admin Login Form */}
-            <form onSubmit={handleAdminLogin}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                <div>
-                  <label
-                    className="text-label"
-                    style={{ display: "block", marginBottom: "6px" }}
-                  >
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    style={inputStyle}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "var(--ember-ash)";
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = "var(--glass-border)";
-                    }}
-                    required
-                    autoComplete="email"
-                    placeholder="admin@threatflix.dev"
-                  />
-                </div>
-                <div>
-                  <label
-                    className="text-label"
-                    style={{ display: "block", marginBottom: "6px" }}
-                  >
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    style={inputStyle}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = "var(--ember-ash)";
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = "var(--glass-border)";
-                    }}
-                    required
-                    autoComplete="current-password"
-                    placeholder="Enter your password"
-                  />
-                </div>
-
-                {/* Error */}
-                {error && (
-                  <div
-                    style={{
-                      color: "var(--severity-critical)",
-                      fontSize: "0.82rem",
-                      fontWeight: 500,
-                      padding: "8px 12px",
-                      borderRadius: "var(--radius-sm)",
-                      background: "rgba(255,77,77,0.08)",
-                      border: "1px solid rgba(255,77,77,0.2)",
-                    }}
-                  >
-                    {error}
-                  </div>
-                )}
-
-                {/* Submit */}
+              {/* ---- Sign Up link ---- */}
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", margin: 0 }}>
+                Don&apos;t have an account?{" "}
                 <button
-                  type="submit"
-                  disabled={loading}
+                  type="button"
+                  onClick={() => navigate("/signup")}
                   style={{
-                    width: "100%",
-                    padding: "12px",
-                    background: "var(--ember-hot)",
-                    color: "#fff",
+                    background: "none",
                     border: "none",
-                    borderRadius: "var(--radius-sm)",
-                    fontFamily: "var(--font-primary)",
-                    fontSize: "0.95rem",
-                    fontWeight: 600,
-                    cursor: loading ? "not-allowed" : "pointer",
-                    opacity: loading ? 0.7 : 1,
-                    transition:
-                      "box-shadow var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast)",
-                    boxShadow: "0 4px 16px rgba(255,107,53,0.25)",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!loading) {
-                      const el = e.currentTarget;
-                      el.style.boxShadow =
-                        "0 4px 24px rgba(255,107,53,0.4), 0 0 40px rgba(255,107,53,0.15)";
-                      el.style.transform = "scale(1.02)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    const el = e.currentTarget;
-                    el.style.boxShadow = "0 4px 16px rgba(255,107,53,0.25)";
-                    el.style.transform = "scale(1)";
+                    color: "var(--ember-warm)",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontSize: "0.85rem",
+                    padding: 0,
+                    textDecoration: "underline",
+                    textUnderlineOffset: "3px",
                   }}
                 >
-                  {loading ? "Signing in…" : "Sign in as Admin"}
+                  Sign Up
                 </button>
-              </div>
-            </form>
-
-            {/* Divider */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "16px",
-                margin: "24px 0",
-              }}
-            >
-              <span
-                style={{
-                  flex: 1,
-                  height: "1px",
-                  background: "var(--glass-border)",
-                }}
-              />
-              <span
-                style={{
-                  color: "var(--text-muted)",
-                  fontSize: "0.8rem",
-                  fontWeight: 400,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                — or —
-              </span>
-              <span
-                style={{
-                  flex: 1,
-                  height: "1px",
-                  background: "var(--glass-border)",
-                }}
-              />
+              </p>
             </div>
-
-            {/* OAuth */}
-            <button
-              type="button"
-              onClick={handleOAuthLogin}
-              disabled={oauthLoading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                background: "transparent",
-                color: "var(--text-secondary)",
-                border: "1px solid var(--glass-border)",
-                borderRadius: "var(--radius-sm)",
-                fontFamily: "var(--font-primary)",
-                fontSize: "0.9rem",
-                fontWeight: 500,
-                cursor: oauthLoading ? "not-allowed" : "pointer",
-                opacity: oauthLoading ? 0.7 : 1,
-                transition:
-                  "all var(--transition-fast)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-              }}
-              onMouseEnter={(e) => {
-                if (!oauthLoading) {
-                  const el = e.currentTarget;
-                  el.style.borderColor = "var(--ember-warm)";
-                  el.style.color = "var(--ember-warm)";
-                  el.style.background = "rgba(232,148,58,0.06)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget;
-                el.style.borderColor = "var(--glass-border)";
-                el.style.color = "var(--text-secondary)";
-                el.style.background = "transparent";
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                <path
-                  fill="#FFC107"
-                  d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
-                />
-                <path
-                  fill="#FF3D00"
-                  d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
-                />
-                <path
-                  fill="#4CAF50"
-                  d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0124 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
-                />
-                <path
-                  fill="#1976D2"
-                  d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
-                />
-              </svg>
-              {oauthLoading ? "Signing in…" : "Sign in with Google"}
-            </button>
           </GlassCard>
         </MagneticCard>
       </div>
     </div>
+    </>
   );
 }
