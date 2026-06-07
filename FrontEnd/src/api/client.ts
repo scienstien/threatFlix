@@ -3,7 +3,7 @@
 // Centralized HTTP client with JWT injection for all backend calls.
 // ---------------------------------------------------------------------------
 
-const API_BASE = "http://localhost:8000";
+export const API_BASE = "http://localhost:8000/api";
 
 /** Get the stored JWT token */
 function getToken(): string | null {
@@ -42,37 +42,6 @@ async function apiFetch<T>(
   }
 
   return res.json();
-}
-
-// ---------------------------------------------------------------------------
-// Auth
-// ---------------------------------------------------------------------------
-
-export interface LoginResponse {
-  token: string;
-  role: "admin" | "user";
-  email: string;
-  projectId?: string;
-}
-
-export async function loginAdmin(
-  email: string,
-  password: string
-): Promise<LoginResponse> {
-  return apiFetch<LoginResponse>("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
-}
-
-export async function loginOAuth(
-  email: string,
-  name: string
-): Promise<LoginResponse> {
-  return apiFetch<LoginResponse>("/auth/oauth", {
-    method: "POST",
-    body: JSON.stringify({ email, name, provider: "google" }),
-  });
 }
 
 // ---------------------------------------------------------------------------

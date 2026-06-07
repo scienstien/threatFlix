@@ -1,62 +1,54 @@
-// ---------------------------------------------------------------------------
-// API Key management routes — GET /apikeys, POST /apikeys
-// ---------------------------------------------------------------------------
-
-import { authenticateJwt } from "../middleware/auth.ts";
+import { Router } from "express";
+import { requireJwt } from "../middleware/auth.ts";
 import { getDb } from "../db/database.ts";
 
-/** GET /apikeys — list API keys for the authenticated project. */
-export async function handleGetApiKeys(req: Request): Promise<Response> {
-  const auth = await authenticateJwt(req);
-  if (!auth) {
-    return Response.json({ error: "Authentication required." }, { status: 401 });
-  }
+export const apiKeysRouter = Router();
 
-  const projectId = auth.projectId;
+apiKeysRouter.get("/", async (req, res) => {
+  const auth = requireJwt(req, res);
+  if (!auth) return;
+
   const db = getDb();
+  let rows: any[] = [];
 
-  let rows: any[];
   if (auth.role === "admin") {
-    // Admin sees all keys
     rows = db.query("SELECT * FROM api_keys ORDER BY created_at DESC").all() as any[];
   } else {
-    // User sees only their project's keys
-    rows = db.query("SELECT * FROM api_keys WHERE project_id = ? AND revoked = 0").all(projectId) as any[];
+    rows = db
+      .query("SELECT * FROM api_keys WHERE project_id = ? AND revoked = 0")
+      .all(auth.projectId) as any[];
   }
 
-  const apiKeys = rows.map((r: any) => ({
-    key: r.key,
-    projectId: r.project_id,
-    label: r.label,
-    createdAt: r.created_at,
-    revoked: r.revoked === 1,
+  const keys = rows.map((row) => ({
+    key: row.key,
+    projectId: row.project_id,
+    label: row.label,
+    createdAt: row.created_at,
+    revoked: row.revoked === 1,
   }));
 
-  return Response.json({ apiKeys });
-}
+  return res.json({ keys });
+});
 
-/** POST /apikeys — generate a new API key for the project. */
-export async function handleCreateApiKey(req: Request): Promise<Response> {
-  const auth = await authenticateJwt(req);
-  if (!auth) {
-    return Response.json({ error: "Authentication required." }, { status: 401 });
-  }
+apiKeysRouter.post("/", async (req, res) => {
+  const auth = requireJwt(req, res);
+  if (!auth) return;
 
-  let body: any = {};
-  try {
-    body = await req.json();
-  } catch {
-    // Body is optional
-  }
+  const body = req.body ?? {};
+  const projectId =
+    auth.role === "admin" && typeof body.projectId === "string"
+      ? body.projectId
+      : auth.projectId;
 
-  const projectId = auth.role === "admin" && body.projectId ? body.projectId : auth.projectId;
-
-  if (projectId === "__admin__" && !body.projectId) {
-    return Response.json({ error: "Specify projectId for admin operations." }, { status: 400 });
+  if (projectId === "__admin__" && typeof body.projectId !== "string") {
+    return res.status(400).json({ error: "Specify projectId for admin operations." });
   }
 
   const apiKey = `sk-${crypto.randomUUID().replace(/-/g, "")}`;
-  const label = body.label || "Generated via Dashboard";
+  const label =
+    typeof body.label === "string" && body.label.trim().length > 0
+      ? body.label.trim()
+      : "Generated via Dashboard";
   const createdAt = new Date().toISOString();
 
   const db = getDb();
@@ -65,14 +57,11 @@ export async function handleCreateApiKey(req: Request): Promise<Response> {
     [apiKey, projectId, label, createdAt]
   );
 
-  return Response.json(
-    {
-      key: apiKey,
-      projectId,
-      label,
-      createdAt,
-      revoked: false,
-    },
-    { status: 201 }
-  );
-}
+  return res.status(201).json({
+    key: apiKey,
+    projectId,
+    label,
+    createdAt,
+    revoked: false,
+  });
+});

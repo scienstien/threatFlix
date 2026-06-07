@@ -1,105 +1,84 @@
-// ---------------------------------------------------------------------------
-// Alert routes — GET /alerts, GET /alerts/:id, PATCH /alerts/:id
-// ---------------------------------------------------------------------------
-
+import { Router } from "express";
 import { authenticateJwt } from "../middleware/auth.ts";
 import { alertRepo } from "../db/repositories/alertRepository.ts";
 import type { AlertStatus } from "../types/alerts.ts";
 
 const VALID_STATUSES: AlertStatus[] = ["open", "acknowledged", "resolved", "false_positive"];
 
-/** GET /alerts — list alerts for the authenticated project. Auth: JWT. */
-export async function handleGetAlerts(req: Request): Promise<Response> {
-  const auth = await authenticateJwt(req);
+export const alertsRouter = Router();
+
+alertsRouter.get("/", async (req, res) => {
+  const auth = authenticateJwt(req);
   if (!auth) {
-    return Response.json({ error: "Authentication required." }, { status: 401 });
+    return res.status(401).json({ error: "Authentication required." });
   }
 
-  const url = new URL(req.url);
-  const severity = url.searchParams.get("severity") ?? undefined;
-  const status = url.searchParams.get("status") ?? undefined;
+  const severity = typeof req.query.severity === "string" ? req.query.severity : undefined;
+  const status = typeof req.query.status === "string" ? req.query.status : undefined;
 
   let projectId = auth.projectId;
-  if (auth.role === "admin" && url.searchParams.get("projectId")) {
-    projectId = url.searchParams.get("projectId")!;
+  if (auth.role === "admin" && typeof req.query.projectId === "string") {
+    projectId = req.query.projectId;
   }
 
-  // Admin without project filter sees global alerts
-  if (projectId === "__admin__" && !url.searchParams.get("projectId")) {
+  if (projectId === "__admin__" && typeof req.query.projectId !== "string") {
     const alerts = alertRepo.getAllGlobal(100);
-    return Response.json({ alerts, count: alerts.length });
+    return res.json({ alerts, count: alerts.length });
   }
 
   const alerts = alertRepo.getAll(projectId, { severity, status });
-  return Response.json({ alerts, count: alerts.length });
-}
+  return res.json({ alerts, count: alerts.length });
+});
 
-/** GET /alerts/:id — get a single alert with details. Auth: JWT. */
-export async function handleGetAlertById(req: Request, id: string): Promise<Response> {
-  const auth = await authenticateJwt(req);
+alertsRouter.get("/:id", async (req, res) => {
+  const auth = authenticateJwt(req);
   if (!auth) {
-    return Response.json({ error: "Authentication required." }, { status: 401 });
+    return res.status(401).json({ error: "Authentication required." });
   }
 
-  let projectId = auth.projectId;
+  const alertId = req.params.id;
+  let alert = null;
 
-  // Admin can access any project's alert
   if (auth.role === "admin") {
-    projectId = "__any__"; // we'll handle this below
-  }
-
-  // For admins, try to find the alert across all projects
-  let alert;
-  if (projectId === "__any__") {
-    // Admin: search globally
     const allAlerts = alertRepo.getAllGlobal(1000);
-    alert = allAlerts.find((a) => a.id === id) ?? null;
+    alert = allAlerts.find((item) => item.id === alertId) ?? null;
   } else {
-    alert = alertRepo.getById(id, projectId);
+    alert = alertRepo.getById(alertId, auth.projectId);
   }
 
   if (!alert) {
-    return Response.json({ error: "Alert not found." }, { status: 404 });
+    return res.status(404).json({ error: "Alert not found." });
   }
 
-  return Response.json({ alert });
-}
+  return res.json({ alert });
+});
 
-/** PATCH /alerts/:id — update alert status. Auth: JWT. */
-export async function handlePatchAlert(req: Request, id: string): Promise<Response> {
-  const auth = await authenticateJwt(req);
+alertsRouter.patch("/:id", async (req, res) => {
+  const auth = authenticateJwt(req);
   if (!auth) {
-    return Response.json({ error: "Authentication required." }, { status: 401 });
+    return res.status(401).json({ error: "Authentication required." });
   }
 
-  let body: any;
-  try {
-    body = await req.json();
-  } catch {
-    return Response.json({ error: "Invalid JSON body." }, { status: 400 });
-  }
-
-  const newStatus = body.status as AlertStatus;
+  const newStatus = req.body?.status as AlertStatus | undefined;
   if (!newStatus || !VALID_STATUSES.includes(newStatus)) {
-    return Response.json(
-      { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` },
-      { status: 400 }
-    );
+    return res.status(400).json({
+      error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
+    });
   }
 
   let projectId = auth.projectId;
-  if (auth.role === "admin" && body.projectId) {
-    projectId = body.projectId;
+  if (auth.role === "admin" && typeof req.body?.projectId === "string") {
+    projectId = req.body.projectId;
   }
 
   if (projectId === "__admin__") {
-    return Response.json({ error: "Specify projectId for admin operations." }, { status: 400 });
+    return res.status(400).json({ error: "Specify projectId for admin operations." });
   }
 
-  const updated = alertRepo.updateStatus(id, projectId, newStatus);
+  const updated = alertRepo.updateStatus(req.params.id, projectId, newStatus);
   if (!updated) {
-    return Response.json({ error: "Alert not found or access denied." }, { status: 404 });
+    return res.status(404).json({ error: "Alert not found or access denied." });
   }
 
-  return Response.json({ success: true, id, status: newStatus });
-}
+  return res.json({ success: true, id: req.params.id, status: newStatus });
+});

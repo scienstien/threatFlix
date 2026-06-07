@@ -1,14 +1,12 @@
-// ---------------------------------------------------------------------------
-// Health check — GET /health
-// ---------------------------------------------------------------------------
-
+import { Router } from "express";
 import { getDb } from "../db/database.ts";
 import { config } from "../config.ts";
 
 const startTime = Date.now();
 
-/** GET /health — public endpoint, no auth required. */
-export function handleHealth(): Response {
+export const healthRouter = Router();
+
+healthRouter.get("/", (_req, res) => {
   let dbStatus = "ok";
   let eventCount = 0;
   let alertCount = 0;
@@ -21,7 +19,7 @@ export function handleHealth(): Response {
     dbStatus = "error";
   }
 
-  return Response.json({
+  res.json({
     status: "healthy",
     version: "0.1.0",
     uptime: Math.floor((Date.now() - startTime) / 1000),
@@ -31,10 +29,11 @@ export function handleHealth(): Response {
       alerts: alertCount,
     },
     ai: {
-      provider: config.geminiApiKey && config.geminiApiKey !== "your-gemini-api-key-here"
-        ? "gemini"
-        : "fallback-rules",
+      provider:
+        config.geminiApiKey && config.geminiApiKey !== "your-gemini-api-key-here"
+          ? "gemini"
+          : "fallback-rules",
       model: config.geminiModel,
     },
   });
-}
+});
