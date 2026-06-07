@@ -3,6 +3,11 @@
 // Forward-compat: swap to a config file or secrets manager later.
 // ---------------------------------------------------------------------------
 
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  throw new Error("CRITICAL: JWT_SECRET environment variable is missing!");
+}
+
 export const config = {
   /** Server */
   port: Number(process.env.PORT ?? 8000),
@@ -16,7 +21,7 @@ export const config = {
   geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
 
   /** JWT */
-  jwtSecret: process.env.JWT_SECRET ?? "threatflix-app-secret-change-in-production",
+  jwtSecret: jwtSecret,
   jwtExpiresIn: Number(process.env.JWT_EXPIRES_IN_SECONDS ?? 86400), // 24h
 
   /** Analysis rate limiting / batching */
