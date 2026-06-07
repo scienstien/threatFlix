@@ -50,7 +50,7 @@ alertsRouter.get("/:id", async (req, res) => {
     return res.status(404).json({ error: "Alert not found." });
   }
 
-  return res.json({ alert });
+  return res.json(alert);
 });
 
 alertsRouter.patch("/:id", async (req, res) => {
