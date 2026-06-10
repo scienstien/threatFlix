@@ -22,6 +22,8 @@ The central V1 design rule is:
 - Reproducible seeded demo customer with normal history, an active account takeover, and comparable incidents
 - SDK and legacy demo runner for event ingestion examples
 
+For the full technical and mathematical explanation, see the [ThreatFlix V1 Technical Wiki](docs/wiki/Home.md).
+
 ## Authority Model
 
 ```text
