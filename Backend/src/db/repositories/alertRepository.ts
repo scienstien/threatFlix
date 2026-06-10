@@ -42,7 +42,7 @@ export const alertRepo = {
     const params: any[] = [projectId];
 
     if (filters?.severity) {
-      sql += " AND severity = ?";
+      sql += " AND lower(severity) = lower(?)";
       params.push(filters.severity);
     }
     if (filters?.status) {

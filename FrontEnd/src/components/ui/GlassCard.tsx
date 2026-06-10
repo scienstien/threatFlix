@@ -35,23 +35,18 @@ export function GlassCard({
       className={`${glassClass} glass-card ${className}`}
       onClick={onClick}
       style={{
-        transition:
-          "box-shadow var(--transition-base), transform var(--transition-base)",
-        ...(glow
-          ? { cursor: "pointer" }
-          : {}),
+        transition: "border-color var(--transition-base)",
         ...style,
       }}
       onMouseEnter={(e) => {
         if (glow) {
-          (e.currentTarget as HTMLDivElement).style.boxShadow =
-            "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 var(--glass-shine), 0 0 30px rgba(255,107,53,0.15), 0 0 60px rgba(255,107,53,0.08)";
+          (e.currentTarget as HTMLDivElement).style.borderColor = "#55555c";
         }
       }}
       onMouseLeave={(e) => {
         if (glow) {
-          (e.currentTarget as HTMLDivElement).style.boxShadow =
-            "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 var(--glass-shine)";
+          (e.currentTarget as HTMLDivElement).style.borderColor =
+            "var(--glass-border)";
         }
       }}
     >

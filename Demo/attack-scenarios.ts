@@ -12,7 +12,7 @@
  * 5. Credential Stuffing - High volume of login attempts with different IPs
  */
 
-import SecurityAI from '../SDK/dist/index.js';
+import SecurityAI from '../SDK/src/index';
 
 /**
  * Scenario 1: Brute Force Attack

@@ -1,23 +1,19 @@
 import { createApp } from "./app.ts";
 import { config } from "./config.ts";
 import { getDb, closeDb } from "./db/database.ts";
+import { startReportWorker } from "./ai/llmWorker.ts";
 
 console.log("\nThreatFlix Backend");
 console.log("=".repeat(32));
 console.log(`Environment: ${config.nodeEnv}`);
 console.log(`Port: ${config.port}`);
 console.log(`Database: ${config.databasePath}`);
-console.log(
-  `AI Provider: ${
-    config.geminiApiKey && config.geminiApiKey !== "your-gemini-api-key-here"
-      ? "Google Gemini"
-      : "Rule-based fallback"
-  }`
-);
+console.log(`LLM Interpretation: Ollama ${config.ollamaModel} at ${config.ollamaUrl}`);
 console.log("=".repeat(32));
 
 getDb();
 console.log("Database initialized.");
+startReportWorker();
 
 const app = createApp();
 const server = app.listen(config.port, () => {
@@ -30,6 +26,10 @@ const server = app.listen(config.port, () => {
   console.log("  GET    /alerts/:id");
   console.log("  PATCH  /alerts/:id");
   console.log("  POST   /analyze");
+  console.log("  GET    /investigations/:id/report");
+  console.log("  POST   /investigations/:id/report/regenerate");
+  console.log("  GET    /investigations/:id/chat");
+  console.log("  POST   /investigations/:id/chat");
   console.log("  GET    /webhooks");
   console.log("  POST   /webhooks");
   console.log("  DELETE /webhooks/:id");

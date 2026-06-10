@@ -13,8 +13,16 @@ export type EventType =
   | "log"
   | "mfa_challenge"
   | "mfa_failure"
+  | "mfa_success"
+  | "mfa_disabled"
   | "privilege_escalation"
   | "data_export"
+  | "api_key_created"
+  | "session_created"
+  | "session_ended"
+  | "role_changed"
+  | "permission_granted"
+  | "permission_revoked"
   | (string & {}); // forward-compat: accept unknown event types
 
 /** Optional geo-enrichment (future). */

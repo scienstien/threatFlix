@@ -5,13 +5,15 @@
 
 import { getDb } from "../db/database.ts";
 import { alertRepo } from "../db/repositories/alertRepository.ts";
+import { investigationRepo } from "../db/repositories/investigationRepository.ts";
 import type { ThreatAlert, WebhookPayload } from "../types/alerts.ts";
+import type { ThreatInvestigation } from "../types/investigations.ts";
 
 /** Emit a webhook for a project event. Non-blocking — fire and forget. */
 export async function emitWebhook(
   projectId: string,
   eventType: string,
-  data: ThreatAlert
+  data: ThreatAlert | ThreatInvestigation
 ): Promise<void> {
   const db = getDb();
 
@@ -24,7 +26,7 @@ export async function emitWebhook(
 
   if (webhooks.length === 0) return;
 
-  const payload: WebhookPayload = {
+  const payload: WebhookPayload<ThreatAlert | ThreatInvestigation> = {
     event: eventType,
     projectId,
     data,
@@ -61,7 +63,11 @@ export async function emitWebhook(
 
       if (res.ok) {
         console.log(`  📤 Webhook delivered to ${webhook.url} (${res.status})`);
-        alertRepo.markWebhookDelivered(data.id);
+        if (eventType.startsWith("investigation.")) {
+          investigationRepo.markWebhookDelivered(data.id);
+        } else {
+          alertRepo.markWebhookDelivered(data.id);
+        }
       } else {
         console.warn(`  ⚠️  Webhook to ${webhook.url} returned ${res.status}`);
       }

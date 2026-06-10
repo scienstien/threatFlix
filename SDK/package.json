@@ -1,6 +1,6 @@
 {
   "name": "@scienstien/threatflix-sdk",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "ThreatFlix SDK - Capture and send security events to your backend",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"

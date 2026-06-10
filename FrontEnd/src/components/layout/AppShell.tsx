@@ -16,22 +16,11 @@ export function AppShell() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-deep)" }}>
-      {/* Fixed sidebar */}
+    <div className="app-shell">
       <Sidebar />
-
-      {/* Main content area */}
-      <div style={{ marginLeft: "240px" }}>
-        {/* Sticky top bar */}
+      <div className="app-main">
         <TopBar />
-
-        {/* Page content */}
-        <main
-          style={{
-            padding: "24px",
-            minHeight: "calc(100vh - 64px)",
-          }}
-        >
+        <main className="app-content">
           <Outlet />
         </main>
       </div>

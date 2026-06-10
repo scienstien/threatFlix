@@ -9,6 +9,7 @@ import { apiKeysRouter } from "./routes/apiKeysRoutes.ts";
 import { adminRouter } from "./routes/admin.ts";
 import { authRouter } from "./routes/authRoutes.ts";
 import { checkRateLimit } from "./middleware/rateLimit.ts";
+import { investigationsRouter } from "./routes/investigations.ts";
 
 export function createApp() {
   const app = express();
@@ -35,6 +36,7 @@ export function createApp() {
   app.use("/api/health", healthRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/alerts", alertsRouter);
+  app.use("/api/investigations", investigationsRouter);
   app.use("/api/analyze", analyzeRouter);
   app.use("/api/webhooks", webhooksRouter);
   app.use("/api/apikeys", apiKeysRouter);

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { authenticateJwt } from "../middleware/auth.ts";
 import { alertRepo } from "../db/repositories/alertRepository.ts";
+import { investigationRepo } from "../db/repositories/investigationRepository.ts";
+import { toAlertApiView, toInvestigationApiView } from "../types/api.ts";
 import type { AlertStatus } from "../types/alerts.ts";
 
 const VALID_STATUSES: AlertStatus[] = ["open", "acknowledged", "resolved", "false_positive"];
@@ -22,11 +24,17 @@ alertsRouter.get("/", async (req, res) => {
   }
 
   if (projectId === "__admin__" && typeof req.query.projectId !== "string") {
-    const alerts = alertRepo.getAllGlobal(100);
+    const alerts = [
+      ...alertRepo.getAllGlobal(100).map(toAlertApiView),
+      ...investigationRepo.getAllGlobal(100).map(toInvestigationApiView),
+    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     return res.json({ alerts, count: alerts.length });
   }
 
-  const alerts = alertRepo.getAll(projectId, { severity, status });
+  const alerts = [
+    ...alertRepo.getAll(projectId, { severity, status }).map(toAlertApiView),
+    ...investigationRepo.getAll(projectId, { severity, status }).map(toInvestigationApiView),
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   return res.json({ alerts, count: alerts.length });
 });
 
@@ -40,10 +48,15 @@ alertsRouter.get("/:id", async (req, res) => {
   let alert = null;
 
   if (auth.role === "admin") {
-    const allAlerts = alertRepo.getAllGlobal(1000);
+    const allAlerts = [
+      ...alertRepo.getAllGlobal(1000).map(toAlertApiView),
+      ...investigationRepo.getAllGlobal(1000).map(toInvestigationApiView),
+    ];
     alert = allAlerts.find((item) => item.id === alertId) ?? null;
   } else {
-    alert = alertRepo.getById(alertId, auth.projectId);
+    const legacy = alertRepo.getById(alertId, auth.projectId);
+    const investigation = investigationRepo.getById(alertId, auth.projectId);
+    alert = legacy ? toAlertApiView(legacy) : investigation ? toInvestigationApiView(investigation) : null;
   }
 
   if (!alert) {
@@ -75,7 +88,9 @@ alertsRouter.patch("/:id", async (req, res) => {
     return res.status(400).json({ error: "Specify projectId for admin operations." });
   }
 
-  const updated = alertRepo.updateStatus(req.params.id, projectId, newStatus);
+  const updated =
+    alertRepo.updateStatus(req.params.id, projectId, newStatus) ||
+    investigationRepo.updateStatus(req.params.id, projectId, newStatus);
   if (!updated) {
     return res.status(404).json({ error: "Alert not found or access denied." });
   }

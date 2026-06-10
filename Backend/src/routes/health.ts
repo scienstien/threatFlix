@@ -29,11 +29,10 @@ healthRouter.get("/", (_req, res) => {
       alerts: alertCount,
     },
     ai: {
-      provider:
-        config.geminiApiKey && config.geminiApiKey !== "your-gemini-api-key-here"
-          ? "gemini"
-          : "fallback-rules",
-      model: config.geminiModel,
+      provider: "ollama",
+      model: config.ollamaModel,
+      url: config.ollamaUrl,
+      authority: "report-only",
     },
   });
 });

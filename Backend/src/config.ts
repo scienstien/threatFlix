@@ -16,9 +16,24 @@ export const config = {
   /** Database */
   databasePath: process.env.DATABASE_PATH ?? "./data/threatflix.db",
 
-  /** Gemini AI */
-  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
-  geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
+  /** Optional anomaly-scoring sidecar */
+  mlServiceUrl: process.env.ML_SERVICE_URL ?? "http://localhost:8001",
+  mlServiceTimeoutMs: Number(process.env.ML_SERVICE_TIMEOUT_MS ?? 2_000),
+
+  /** Local Ollama interpretation layer */
+  ollamaUrl: process.env.OLLAMA_URL ?? "http://127.0.0.1:11434",
+  ollamaModel: process.env.OLLAMA_MODEL ?? "gemma4:latest",
+  ollamaReportTimeoutMs: Number(process.env.OLLAMA_REPORT_TIMEOUT_MS ?? 120_000),
+  ollamaChatTimeoutMs: Number(process.env.OLLAMA_CHAT_TIMEOUT_MS ?? 60_000),
+  ollamaKeepAlive: process.env.OLLAMA_KEEP_ALIVE ?? "10m",
+
+  /** Post-detection incident graph similarity */
+  graphSimilarityEnabled: process.env.GRAPH_SIMILARITY_ENABLED !== "false",
+  graphSimilarityMaxCandidates: Number(process.env.GRAPH_SIMILARITY_MAX_CANDIDATES ?? 500),
+  graphSimilarityApiDefaultLimit: Number(process.env.GRAPH_SIMILARITY_API_DEFAULT_LIMIT ?? 5),
+  graphSimilarityApiMaxLimit: Number(process.env.GRAPH_SIMILARITY_API_MAX_LIMIT ?? 20),
+  graphSimilarityLlmLimit: Number(process.env.GRAPH_SIMILARITY_LLM_LIMIT ?? 3),
+  graphSimilarityMinScore: Number(process.env.GRAPH_SIMILARITY_MIN_SCORE ?? 0.3),
 
   /** JWT */
   jwtSecret: jwtSecret,

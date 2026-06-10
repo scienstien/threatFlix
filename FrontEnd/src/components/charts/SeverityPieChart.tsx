@@ -4,7 +4,6 @@
 // ---------------------------------------------------------------------------
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, Sector } from "recharts";
-import { useState, useCallback } from "react";
 
 interface SeverityPieChartProps {
   data: {
@@ -22,7 +21,7 @@ interface SeverityEntry {
   color: string;
 }
 
-const SEVERITY_COLORS: Record<string, string> = {
+const SEVERITY_COLORS: Record<"Critical" | "High" | "Medium" | "Low" | "Info", string> = {
   Critical: "#ff4d4d",
   High: "#ff6b35",
   Medium: "#e8943a",
@@ -185,16 +184,7 @@ function CustomLegend({ payload }: any) {
 
 /* ---- Main component ---- */
 export function SeverityPieChart({ data }: SeverityPieChartProps) {
-  const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
   const chartData = toChartData(data);
-
-  const onMouseEnter = useCallback((_: any, index: number) => {
-    setActiveIndex(index);
-  }, []);
-
-  const onMouseLeave = useCallback(() => {
-    setActiveIndex(undefined);
-  }, []);
 
   return (
     <ResponsiveContainer width="100%" height={300}>
@@ -211,10 +201,7 @@ export function SeverityPieChart({ data }: SeverityPieChartProps) {
           animationBegin={200}
           animationDuration={1200}
           animationEasing="ease-out"
-          activeIndex={activeIndex}
           activeShape={renderActiveShape}
-          onMouseEnter={onMouseEnter}
-          onMouseLeave={onMouseLeave}
         >
           {chartData.map((entry, index) => (
             <Cell

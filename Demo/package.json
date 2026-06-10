@@ -1,6 +1,6 @@
 {
   "name": "@securityai/demo",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "SecurityAI Demo - Attack scenarios, MITRE mapping, and demo runner",
   "main": "runner.ts",
   "type": "module",

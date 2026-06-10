@@ -1,0 +1,13 @@
+[project]
+name = "threatflix-ml"
+version = "1.0.0"
+description = "Offline UEBA training and evaluation workspace for ThreatFlix"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "grakel==0.1.10",
+    "joblib==1.4.2",
+    "numpy==2.2.1",
+    "pyod==2.0.5",
+    "scikit-learn==1.6.0",
+]

@@ -78,22 +78,29 @@ export const eventRepo = {
     return row?.count ?? 0;
   },
 
-  /** Get recent unanalysed events for a project (events newer than the last alert). */
+  /** Get recent events that are not linked to a legacy alert or investigation. */
   getUnanalysed(projectId: string, limit: number = 50): SecurityEvent[] {
     const db = getDb();
     const rows = db
       .query(
         `SELECT e.* FROM events e
          WHERE e.project_id = ?
-           AND e.id NOT IN (
+           AND NOT EXISTS (
              SELECT json_each.value
              FROM alerts a, json_each(a.related_event_ids)
              WHERE a.project_id = ?
+               AND json_each.value = e.id
+           )
+           AND NOT EXISTS (
+             SELECT json_each.value
+             FROM investigations i, json_each(i.related_event_ids)
+             WHERE i.project_id = ?
+               AND json_each.value = e.id
            )
          ORDER BY e.timestamp DESC
          LIMIT ?`
       )
-      .all(projectId, projectId, limit) as any[];
+      .all(projectId, projectId, projectId, limit) as any[];
     return rows.map(mapRow);
   },
 

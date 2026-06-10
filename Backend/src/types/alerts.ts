@@ -41,9 +41,9 @@ export interface WebhookConfig {
 }
 
 /** The payload we POST to external webhook URLs (n8n / Zapier / Slack). */
-export interface WebhookPayload {
+export interface WebhookPayload<T = ThreatAlert> {
   event: string;                // e.g. "alert.created"
   projectId: string;
-  data: ThreatAlert;
+  data: T;
   timestamp: string;
 }

@@ -1,235 +1,247 @@
-// ---------------------------------------------------------------------------
-// AI Analyzer — Gemini LLM integration with batching, cooldowns, and retries.
-// Forward-compat: provider interface for swapping to OpenAI/Anthropic.
-// ---------------------------------------------------------------------------
-
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { config } from "../config.ts";
-import { SYSTEM_PROMPT, buildUserPrompt } from "./prompts.ts";
 import { enrichMitre } from "./mitre.ts";
 import { canRunAnalysis, recordAnalysis } from "../middleware/rateLimit.ts";
 import { eventRepo } from "../db/repositories/eventRepository.ts";
-import { alertRepo } from "../db/repositories/alertRepository.ts";
-import type { SecurityEvent } from "../types/events.ts";
-import type { AIAnalysisResult, ThreatAlert } from "../types/alerts.ts";
+import { investigationRepo } from "../db/repositories/investigationRepository.ts";
 import { emitWebhook } from "../webhooks/emitter.ts";
+import { sessionizeEvents } from "./sessionizer.ts";
+import { evaluateEvidence, type EvidenceFinding } from "./evidenceEngine.ts";
+import { extractIdentityFeatures, mergeFeatureVectors } from "./featureExtractor.ts";
+import type { MlScoreResult } from "./mlClient.ts";
+import { scoreDeterministicSessions } from "./uebaScoring.ts";
+import { buildIncidentGraph } from "./incidentGraph.ts";
+import { buildCorrelationClusters } from "./deterministic/clustering.ts";
+import { buildChainEdges, buildClusterChainEdges } from "./deterministic/edges.ts";
+import { scoreDeterministicClusters, type DeterministicClusterScore } from "./deterministic/scoring.ts";
+import { classifyDeterministicInvestigation } from "./deterministic/classification.ts";
+import { enqueueInitialReport } from "./llmWorker.ts";
+import { indexInvestigationGraph } from "./graphSimilarity/service.ts";
+import { toInvestigationApiView } from "../types/api.ts";
+import type { SecurityEvent } from "../types/events.ts";
+import type { AIAnalysisResult, Severity } from "../types/alerts.ts";
+import type {
+  DeterministicChainEdge,
+  DeterministicScoreBreakdown,
+  Evidence,
+  InvestigationApiView,
+  ThreatInvestigation,
+} from "../types/investigations.ts";
 
-// ---------------------------------------------------------------------------
-// Provider interface (forward-compat)
-// ---------------------------------------------------------------------------
-
-export interface AIProvider {
-  analyze(events: SecurityEvent[], projectId: string): Promise<AIAnalysisResult>;
-}
-
-// ---------------------------------------------------------------------------
-// Gemini provider
-// ---------------------------------------------------------------------------
-
-class GeminiProvider implements AIProvider {
-  private client: GoogleGenerativeAI;
-
-  constructor(apiKey: string) {
-    this.client = new GoogleGenerativeAI(apiKey);
-  }
-
-  async analyze(events: SecurityEvent[], projectId: string): Promise<AIAnalysisResult> {
-    const model = this.client.getGenerativeModel({
-      model: config.geminiModel,
-      generationConfig: {
-        temperature: 0.2,       // low temp for consistent structured output
-        maxOutputTokens: 1024,
-        responseMimeType: "application/json",
-      },
-    });
-
-    const prompt = buildUserPrompt(events, projectId);
-
-    let lastError: Error | null = null;
-
-    // Retry with exponential backoff
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const result = await model.generateContent({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          systemInstruction: { role: "system", parts: [{ text: SYSTEM_PROMPT }] },
-        });
-
-        const text = result.response.text();
-        const parsed = JSON.parse(text) as AIAnalysisResult;
-
-        // Validate required fields
-        if (!parsed.attack || !parsed.severity || parsed.confidence === undefined) {
-          throw new Error("LLM response missing required fields");
-        }
-
-        // Clamp confidence to [0, 1]
-        parsed.confidence = Math.max(0, Math.min(1, parsed.confidence));
-
-        // Enrich MITRE data
-        const mitre = enrichMitre(parsed.mitre, parsed.mitreName);
-        parsed.mitre = mitre.mitre;
-        parsed.mitreName = mitre.mitreName;
-
-        return parsed;
-      } catch (err) {
-        lastError = err as Error;
-        console.error(`  ⚠️  Gemini attempt ${attempt + 1} failed:`, (err as Error).message);
-
-        if (attempt < 2) {
-          const delay = 1000 * Math.pow(2, attempt); // 1s, 2s
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      }
-    }
-
-    throw new Error(`AI analysis failed after 3 attempts: ${lastError?.message}`);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Fallback rule-based analyzer (when LLM is unavailable or rate-limited)
-// ---------------------------------------------------------------------------
-
-class FallbackProvider implements AIProvider {
-  async analyze(events: SecurityEvent[], _projectId: string): Promise<AIAnalysisResult> {
-    const failedLogins = events.filter((e) => e.event === "failed_login").length;
-    const successLogins = events.filter((e) => e.event === "successful_login").length;
-    const uniqueIps = new Set(events.map((e) => e.ip)).size;
-    const uniqueUsers = new Set(events.map((e) => e.user)).size;
-
-    // Simple heuristics
-    if (failedLogins >= 5 && successLogins >= 1) {
-      return {
-        attack: "Brute Force (Rule-based Detection)",
-        severity: "High",
-        confidence: 0.75,
-        mitre: "T1110",
-        mitreName: "Brute Force",
-        reasoning: `Detected ${failedLogins} failed login attempts followed by ${successLogins} successful login(s) from ${uniqueIps} IP(s). This pattern is consistent with a brute force attack.`,
-        recommendation: "Force password reset for affected accounts, enable MFA, and review the source IPs.",
-      };
-    }
-
-    if (failedLogins >= 3 && uniqueUsers >= 3 && uniqueIps <= 2) {
-      return {
-        attack: "Credential Stuffing (Rule-based Detection)",
-        severity: "Medium",
-        confidence: 0.65,
-        mitre: "T1110.004",
-        mitreName: "Credential Stuffing",
-        reasoning: `Detected ${failedLogins} failed logins across ${uniqueUsers} different users from only ${uniqueIps} IP(s). This pattern suggests automated credential testing.`,
-        recommendation: "Implement CAPTCHA, rate-limit login attempts per IP, and check credentials against known breach databases.",
-      };
-    }
-
-    const hasPrivEsc = events.some((e) => e.event === "privilege_escalation");
-    const hasDataExport = events.some((e) => e.event === "data_export");
-
-    if (hasPrivEsc || hasDataExport) {
-      return {
-        attack: "Suspicious Activity (Rule-based Detection)",
-        severity: hasDataExport ? "Critical" : "High",
-        confidence: 0.6,
-        mitre: hasDataExport ? "T1048" : "T1068",
-        mitreName: hasDataExport ? "Exfiltration Over Alternative Protocol" : "Exploitation for Privilege Escalation",
-        reasoning: `Detected ${hasPrivEsc ? "privilege escalation" : ""}${hasPrivEsc && hasDataExport ? " and " : ""}${hasDataExport ? "data export" : ""} events. These activities warrant immediate investigation.`,
-        recommendation: "Audit the affected user accounts, check for unauthorized access, and review data access logs.",
-      };
-    }
-
-    return {
-      attack: "Suspicious Activity",
-      severity: "Low",
-      confidence: 0.3,
-      mitre: "T1078",
-      mitreName: "Valid Accounts",
-      reasoning: `Observed ${events.length} events with ${failedLogins} failed logins. The pattern does not strongly indicate a specific attack but warrants monitoring.`,
-      recommendation: "Continue monitoring. Consider enabling additional logging for these accounts.",
-    };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Main analyzer — selects provider, enforces rate limits
-// ---------------------------------------------------------------------------
-
-let provider: AIProvider | null = null;
-let fallback: AIProvider = new FallbackProvider();
-
-function getProvider(): AIProvider {
-  if (provider) return provider;
-
-  if (config.geminiApiKey && config.geminiApiKey !== "your-gemini-api-key-here") {
-    provider = new GeminiProvider(config.geminiApiKey);
-    return provider;
-  }
-
-  console.warn("  ⚠️  No Gemini API key configured — using rule-based fallback analyzer.");
-  return fallback;
-}
-
-/** Run AI analysis on a set of events. Enforces rate limits and cooldowns. */
 export async function analyzeEvents(
   projectId: string,
-  events?: SecurityEvent[]
-): Promise<ThreatAlert> {
-  // Rate limit check
-  const rateCheck = canRunAnalysis(projectId);
-  if (!rateCheck.allowed) {
-    throw new Error(rateCheck.reason ?? "Analysis rate limit reached.");
+  events?: SecurityEvent[],
+  options: { bypassRateLimit?: boolean } = {}
+): Promise<InvestigationApiView> {
+  if (!options.bypassRateLimit) {
+    const rateCheck = canRunAnalysis(projectId);
+    if (!rateCheck.allowed) {
+      throw new Error(rateCheck.reason ?? "Analysis rate limit reached.");
+    }
   }
 
-  // Get events if not provided
   const timeline = events ?? eventRepo.getUnanalysed(projectId, 50);
-
   if (timeline.length === 0) {
     throw new Error("No events to analyze.");
   }
 
-  // Sort by timestamp ascending
-  timeline.sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
+  timeline.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const sessions = sessionizeEvents(timeline);
+  const evidenceResult = evaluateEvidence(timeline, sessions);
 
-  console.log(`  🧠 Analyzing ${timeline.length} events for project ${projectId}...`);
-
-  let result: AIAnalysisResult;
-  try {
-    result = await getProvider().analyze(timeline, projectId);
-  } catch (err) {
-    console.warn(`  ⚠️  LLM failed, falling back to rule-based analysis: ${(err as Error).message}`);
-    result = await fallback.analyze(timeline, projectId);
+  // --- Deterministic pipeline ---
+  const clusters = buildCorrelationClusters(evidenceResult.findings);
+  const clusterScores = scoreDeterministicClusters(clusters);
+  const chainEdges = buildClusterChainEdges(clusters);
+  const topClusterScore = clusterScores[0];
+  const topScore = topClusterScore?.score;
+  if (!topScore) {
+    throw new Error("No deterministic evidence produced an investigation.");
   }
+  const topCluster = clusters.find((cluster) => cluster.clusterId === topClusterScore.clusterId);
+  const topClusterFindings = topCluster?.findings ?? evidenceResult.findings;
 
-  // Record the analysis for rate limiting
-  recordAnalysis(projectId);
-
-  // Build the alert
-  const alert: ThreatAlert = {
-    id: crypto.randomUUID(),
+  const featureVectors = sessions.map((session) => extractIdentityFeatures(session, timeline));
+  const features = mergeFeatureVectors(featureVectors);
+  const uebaResult = await scoreDeterministicSessions(
     projectId,
-    ...result,
-    relatedEventIds: timeline.map((e) => e.id),
-    createdAt: new Date().toISOString(),
-    status: "open",
-    webhookDelivered: false,
-  };
+    sessions,
+    loadUebaHistory(projectId, timeline),
+    evidenceResult.findings
+  );
+  const mlScore = uebaResult.mlScore;
+  const contextEvents = loadGraphContext(projectId, timeline);
+  const graph = buildIncidentGraph(contextEvents);
+  const classification = classifyDeterministicInvestigation(
+    topClusterFindings,
+    topScore.finalScore
+  );
+  const fusedConfidence = computeFusedConfidence(topScore, mlScore, topScore.finalScore / 100);
+  if (!options.bypassRateLimit) recordAnalysis(projectId);
 
-  // Persist
-  alertRepo.insert(alert);
-  console.log(`  🚨 Alert created: ${alert.attack} (${alert.severity}) — ${alert.mitre}`);
-
-  // Fire webhook (non-blocking)
-  emitWebhook(projectId, "alert.created", alert).catch((err) =>
-    console.error("  ⚠️  Webhook delivery failed:", err)
+  const investigation = buildInvestigation(
+    projectId,
+    timeline,
+    graph,
+    { ...features },
+    evidenceResult.findings,
+    {
+      attack: classification.title,
+      severity: classification.severity,
+      confidence: fusedConfidence,
+      mitre: classification.mitre,
+      mitreName: classification.mitreName,
+      reasoning: classification.summary,
+      recommendation: classification.recommendation,
+    },
+    chainEdges,
+    topScore,
+    uebaResult.summary
   );
 
-  return alert;
+  investigationRepo.insert(investigation);
+  try {
+    indexInvestigationGraph({
+      investigation,
+      selectedEventIds: topCluster?.eventIds ?? topClusterFindings.flatMap((finding) => finding.eventIds),
+      findings: topClusterFindings,
+      chainEdges: topCluster ? buildChainEdges(topCluster) : [],
+    });
+  } catch (error) {
+    console.error(`Graph similarity indexing failed for ${investigation.id}:`, error);
+  }
+  const reportJob = enqueueInitialReport(investigation.id, projectId);
+  investigation.llmReportStatus = reportJob.status;
+  investigation.llmContextVersion = reportJob.contextVersion;
+  emitWebhook(projectId, "investigation.created", investigation).catch((error) =>
+    console.error("Webhook delivery failed:", error)
+  );
+
+  return toInvestigationApiView(investigation);
 }
 
-/** Check if analysis should auto-trigger for a project (called after event ingestion). */
 export function shouldAutoAnalyze(projectId: string): boolean {
   const recentCount = eventRepo.countRecent(projectId, config.analysisCooldownMs);
   return recentCount >= config.analysisEventThreshold;
+}
+
+function loadGraphContext(projectId: string, timeline: SecurityEvent[]): SecurityEvent[] {
+  const first = timeline[0];
+  const last = timeline[timeline.length - 1];
+  if (!first || !last) return timeline;
+
+  const from = new Date(new Date(first.timestamp).getTime() - 60 * 60 * 1000).toISOString();
+  const to = new Date(new Date(last.timestamp).getTime() + 60 * 60 * 1000).toISOString();
+  return eventRepo.getByTimeRange(projectId, from, to);
+}
+
+function loadUebaHistory(projectId: string, timeline: SecurityEvent[]): SecurityEvent[] {
+  const first = timeline[0];
+  const last = timeline[timeline.length - 1];
+  if (!first || !last) return timeline;
+
+  const from = new Date(new Date(first.timestamp).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const stored = eventRepo.getByTimeRange(projectId, from, last.timestamp);
+  const byId = new Map([...stored, ...timeline].map((event) => [event.id, event]));
+  return [...byId.values()].sort(
+    (left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime()
+  );
+}
+
+function buildInvestigation(
+  projectId: string,
+  events: SecurityEvent[],
+  graph: ThreatInvestigation["graph"],
+  features: ThreatInvestigation["features"],
+  findings: EvidenceFinding[],
+  analysis: AIAnalysisResult,
+  chainEdges?: DeterministicChainEdge[],
+  scoreBreakdown?: DeterministicScoreBreakdown,
+  uebaSummary?: import("../types/ueba.ts").UebaScoreSummary
+): ThreatInvestigation {
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  const normalized = normalizeAnalysis(analysis);
+
+  return {
+    id,
+    projectId,
+    title: normalized.attack,
+    severity: normalized.severity,
+    confidence: normalized.confidence,
+    mitre: normalized.mitre,
+    mitreName: normalized.mitreName,
+    summary: normalized.reasoning,
+    recommendation: normalized.recommendation,
+    graph,
+    features,
+    relatedEventIds: events.map((event) => event.id),
+    createdAt,
+    status: "open",
+    webhookDelivered: false,
+    evidence: findings.map((finding): Evidence => ({
+      id: crypto.randomUUID(),
+      investigationId: id,
+      projectId,
+      ruleId: finding.ruleId,
+      weight: finding.weight,
+      description: finding.description,
+      eventIds: finding.eventIds,
+      createdAt,
+      deterministic: finding.deterministic,
+    })),
+    deterministicChain: chainEdges,
+    deterministicScore: scoreBreakdown,
+    uebaSummary,
+  };
+}
+
+/**
+ * ML Bounding per guardrail contract:
+ * finalScore = clamp(D + delta_ml, 0, 100)
+ * where delta_ml shrinks as D increases.
+ */
+function computeFusedConfidence(
+  deterministicScore: DeterministicScoreBreakdown,
+  mlScore: MlScoreResult,
+  llmConfidence: number
+): number {
+  const D = deterministicScore.finalScore;
+  if (D <= 0) return llmConfidence;
+
+  // Center ML anomaly score at 0: m = 100*M - 50
+  const m = 100 * mlScore.anomalyScore - 50;
+
+  // ML influence cap decreases as deterministic strength increases
+  // At D=0: maxDelta=30, at D=50: maxDelta=15, at D=100: maxDelta=5
+  const maxDelta = Math.max(5, 30 - 0.25 * D);
+  const deltaMl = Math.max(-maxDelta, Math.min(maxDelta, m));
+
+  const fusedScore = Math.max(0, Math.min(100, D + deltaMl));
+  return Math.max(0, Math.min(1, fusedScore / 100));
+}
+
+function normalizeAnalysis(result: AIAnalysisResult): AIAnalysisResult {
+  if (!result.attack || !result.severity || result.confidence === undefined) {
+    throw new Error("Analysis response missing required fields.");
+  }
+
+  const mitre = enrichMitre(result.mitre, result.mitreName);
+  return {
+    attack: result.attack,
+    severity: normalizeSeverity(result.severity),
+    confidence: Math.max(0, Math.min(1, result.confidence)),
+    mitre: mitre.mitre,
+    mitreName: mitre.mitreName,
+    reasoning: result.reasoning || "No reasoning provided.",
+    recommendation: result.recommendation || "Review the related events and validate account activity.",
+  };
+}
+
+function normalizeSeverity(severity: string): Severity {
+  const normalized = severity.toLowerCase();
+  if (normalized === "critical") return "Critical";
+  if (normalized === "high") return "High";
+  if (normalized === "medium") return "Medium";
+  if (normalized === "low") return "Low";
+  return "Info";
 }

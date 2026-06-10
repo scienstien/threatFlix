@@ -1,14 +1,19 @@
 {
   "name": "threatflix-backend",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/server.ts",
-    "start": "NODE_ENV=production bun src/server.ts"
+    "start": "NODE_ENV=production bun src/server.ts",
+    "seed:demo": "bun scripts/seed-demo-customer.ts",
+    "backfill:graph": "bun scripts/backfill-graph-similarity.ts",
+    "evaluate:graph": "bun scripts/evaluate-graph-similarity.ts",
+    "export:graph-validation": "bun scripts/export-graph-validation-corpus.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.0",
     "@types/uuid": "^10.0.0",
     "cors": "^2.8.6",
     "express": "^4.22.2",
@@ -20,6 +25,7 @@
     "@types/bun": "latest",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/jsonwebtoken": "^9.0.10"
+    "@types/jsonwebtoken": "^9.0.10",
+    "typescript": "^5.8.3"
   }
 }

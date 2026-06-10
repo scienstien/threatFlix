@@ -1,0 +1,14 @@
+[project]
+name = "threatflix-ml-service"
+version = "1.0.0"
+description = "Runtime UEBA scoring service for ThreatFlix"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    "joblib==1.4.2",
+    "numpy==2.2.1",
+    "pyod==2.0.5",
+    "scikit-learn==1.6.0",
+    "uvicorn==0.34.0",
+]

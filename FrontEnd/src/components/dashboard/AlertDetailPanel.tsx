@@ -157,6 +157,8 @@ export function AlertDetailPanel({ alert, onClose }: AlertDetailPanelProps) {
   const color = severityColors[alert.severity] || "#c4956a";
   const radius = 54;
   const circumference = Math.PI * radius;
+  const graphNodes = alert.graph?.nodes ?? [];
+  const graphEdges = alert.graph?.edges ?? [];
 
   return (
     <div
@@ -377,6 +379,54 @@ export function AlertDetailPanel({ alert, onClose }: AlertDetailPanelProps) {
           </p>
         </div>
 
+        {alert.evidence && alert.evidence.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <span className="text-label" style={{ display: "block", marginBottom: 6 }}>
+              Evidence
+            </span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {alert.evidence.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    border: "1px solid var(--glass-border)",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    background: "var(--bg-hover)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.72rem",
+                      color,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span>{item.ruleId}</span>
+                    <span>+{item.weight}</span>
+                  </div>
+                  <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "0.82rem", lineHeight: 1.45 }}>
+                    {item.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {graphNodes.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <span className="text-label" style={{ display: "block", marginBottom: 6 }}>
+              Incident Graph
+            </span>
+            <IncidentGraphPreview nodes={graphNodes} edgeCount={graphEdges.length} color={color} />
+          </div>
+        )}
+
         {/* Footer row: event count + timestamp */}
         <div
           style={{
@@ -407,6 +457,85 @@ export function AlertDetailPanel({ alert, onClose }: AlertDetailPanelProps) {
             {formatTimestamp(alert.timestamp)}
           </span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function IncidentGraphPreview({
+  nodes,
+  edgeCount,
+  color,
+}: {
+  nodes: NonNullable<Alert["graph"]>["nodes"];
+  edgeCount: number;
+  color: string;
+}) {
+  const visibleNodes = nodes.slice(0, 12);
+
+  return (
+    <div
+      style={{
+        border: "1px solid var(--glass-border)",
+        borderRadius: "8px",
+        padding: 12,
+        background: "var(--bg-hover)",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+          gap: 8,
+          marginBottom: 10,
+        }}
+      >
+        {visibleNodes.map((node) => (
+          <div
+            key={node.id}
+            title={node.id}
+            style={{
+              minHeight: 44,
+              border: `1px solid ${color}`,
+              borderRadius: "8px",
+              padding: "7px 9px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "0.62rem",
+                color,
+                textTransform: "uppercase",
+                marginBottom: 3,
+              }}
+            >
+              {node.type}
+            </div>
+            <div
+              style={{
+                color: "var(--text-primary)",
+                fontSize: "0.78rem",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {node.label}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "0.72rem",
+          color: "var(--text-muted)",
+        }}
+      >
+        {nodes.length} node{nodes.length !== 1 ? "s" : ""} · {edgeCount} edge
+        {edgeCount !== 1 ? "s" : ""}
       </div>
     </div>
   );
