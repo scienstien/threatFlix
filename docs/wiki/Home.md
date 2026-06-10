@@ -576,5 +576,3 @@ This is a planning model, not a guaranteed customer outcome. A pilot should meas
 ThreatFlix V1 is strongest as an architecture for trustworthy AI-assisted security investigation. Its defensible innovation is the disciplined composition of deterministic evidence, bounded behavioral scoring, identity-independent graph retrieval, and non-authoritative language-model interpretation.
 
 It is ready for a strong demo and a carefully scoped design-partner pilot. It is not ready for broad production-performance claims until real telemetry, analyst labels, and production platform controls are in place.
-
-Strategic rule: sell the trust model and investigation workflow, not `AI detection`.
