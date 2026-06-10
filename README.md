@@ -1,161 +1,125 @@
+<div align="center">
+
 # ThreatFlix
 
-**Version 1.0.0**
+### An identity attack should look like a story, not a pile of logs.
 
-ThreatFlix is an explainable identity-threat detection and investigation platform. It turns raw identity
-telemetry into deterministic investigations, enriches them with behavioral anomaly scoring, compares
-their attack structure against historical incidents, and gives SOC analysts a bounded local-LLM report
-and chat interface.
+[![Release](https://img.shields.io/badge/release-1.0.0-f2f2f2?style=flat-square&labelColor=111111)](https://github.com/scienstien/threatFlix/releases)
+[![Backend](https://img.shields.io/badge/backend-Bun%20%2B%20SQLite-f2f2f2?style=flat-square&labelColor=111111)](Backend/)
+[![Frontend](https://img.shields.io/badge/frontend-React%2019-f2f2f2?style=flat-square&labelColor=111111)](FrontEnd/)
+[![ML](https://img.shields.io/badge/UEBA-Isolation%20Forest%20%2B%20ECOD%20%2B%20COPOD-f2f2f2?style=flat-square&labelColor=111111)](ML/)
 
-The central V1 design rule is:
+**A student-built, explainable identity-threat investigation system.**
 
-> Deterministic evidence creates investigations. ML, graph similarity, and the LLM may refine and
-> explain them, but cannot independently create an investigation.
+</div>
 
-## What V1 Includes
+---
 
-- Deterministic identity-threat rules, clustering, attack-chain construction, and risk scoring
-- UEBA scoring using a locked 21-feature Isolation Forest + ECOD + COPOD ensemble
-- Weisfeiler-Lehman incident-graph fingerprints and cross-incident similarity retrieval
-- Local Ollama interpretation reports and source-grounded analyst chat
-- React investigation workspace with raw telemetry, evidence, graph exploration, UEBA, and reports
-- Reproducible seeded demo customer with normal history, an active account takeover, and comparable incidents
-- SDK and legacy demo runner for event ingestion examples
+## The Story
 
-For the full technical and mathematical explanation, see the [ThreatFlix V1 Technical Wiki](docs/wiki/Home.md).
+Security telemetry is very good at telling you that *things happened*.
 
-## Authority Model
+A login failed. Then another failed. MFA was rejected. A login succeeded. MFA was disabled. A new API
+key appeared. Data left the system.
 
-```text
-Raw telemetry
-  -> sessionization and deterministic evidence rules
-  -> deterministic investigation and attack chain
-  -> bounded UEBA score refinement
-  -> graph fingerprint and historical similarity
-  -> frozen LLM context, report, and SOC chat
-  -> analyst-facing investigation workspace
-```
+Every event is individually understandable. The hard part is recognizing that together they describe one
+attack, deciding which parts are facts, and explaining the result without asking an LLM to invent the
+truth.
 
-Failure of the ML service, graph layer, or Ollama does not discard deterministic findings.
+That is the question behind ThreatFlix:
 
-## Repository Layout
+> Can we turn an identity attack into an investigation that an analyst can inspect, challenge, and
+> understand?
 
-| Path | Responsibility |
-| --- | --- |
-| `Backend/` | Bun + Express API, SQLite persistence, deterministic engine, graph layer, LLM integration |
-| `Backend/models/service/` | Runtime-only FastAPI UEBA scoring service and promoted model artifact |
-| `FrontEnd/` | React 19 + Vite analyst dashboard and investigation workspace |
-| `ML/` | Offline reproducible UEBA training, evaluation, review, and graph validation |
-| `SDK/` | TypeScript event-ingestion SDK |
-| `Demo/` | Legacy standalone attack scenario runner |
+ThreatFlix begins with raw telemetry and deterministic evidence. Those facts create the investigation.
+Behavioral ML can refine its urgency. Graph similarity can find earlier incidents with the same shape.
+A local LLM can explain the case and answer questions. None of those supporting layers are allowed to
+quietly rewrite what happened.
 
-## Core Detection Logic
+## Watch The Attack Assemble
 
-### Deterministic Layer
+The topology explorer is lazy-loaded only when an analyst asks for it. Every node and directed
+relationship shown below comes from persisted raw telemetry.
 
-The evidence engine recognizes identity attack signals such as brute force, password spraying,
-credential stuffing, success-after-failure, MFA bypass, MFA disablement, privilege changes,
-persistence, account access removal, and data exfiltration.
+<div align="center">
+  <img src="readme-assets/incident-graph-reveal.gif" alt="ThreatFlix incident graph progressively revealing an identity attack" width="960" />
+</div>
 
-Events are sessionized and clustered using shared entities and bounded time windows. Evidence is ordered
-into attack stages:
+The graph is not decoration. It gives the analyst a way to move from:
 
 ```text
-access_pressure -> access_success -> persistence -> privilege_change -> objective_action
+failed login -> successful login -> MFA disabled -> privilege change -> persistence -> export
 ```
 
-The deterministic score is:
+to a visual answer for:
 
-```text
-D = clamp(ruleScore + chainScore + blastRadius + temporalScore
-          + ATT&CKScore + CAPECScore - penalties, 0, 100)
-```
+- Which identity was involved?
+- Where did the activity originate?
+- Which events belong to the same session?
+- What service was targeted?
+- Have we seen an incident with this structure before?
 
-### UEBA Layer
+## The Design Bet
 
-The backend derives a fixed 21-feature session vector using only prior context. V1 assumes users are
-based in Indian Standard Time and treats activity outside 08:00-18:00 IST as off-hours.
+ThreatFlix deliberately separates **authority** from **assistance**.
 
-The promoted ensemble is:
+| Layer | What it contributes | What it cannot do |
+| --- | --- | --- |
+| Deterministic investigation engine | Evidence, attack chain, classification, initial risk | Hide behind an opaque model |
+| UEBA ensemble | Behavioral anomaly context and bounded score refinement | Create an investigation by itself |
+| Graph similarity | Earlier incidents with structurally similar progression | Claim common attribution |
+| Local LLM | Incident narrative, recommended actions, analyst chat | Change the evidence or risk score |
 
-```text
-anomalyScore =
-    0.45 * percentile(IsolationForest)
-  + 0.30 * percentile(ECOD)
-  + 0.25 * percentile(COPOD)
-```
+That boundary is the project. The models are useful because they have somewhere honest to stand.
 
-The V1 anomaly threshold is `0.99`. ML refinement is bounded so it cannot overwhelm deterministic
-evidence:
+For the mathematics, scoring logic, architecture, evaluation boundaries, finances, and roadmap, read the
+[ThreatFlix V1 Technical Wiki](docs/wiki/Home.md).
 
-```text
-mlDeltaLimit = max(5, 30 - 0.25 * deterministicScore)
-fusedScore   = clamp(deterministicScore + boundedMlDelta, 0, 100)
-```
+## What The Analyst Sees
 
-### Graph Similarity Layer
+ThreatFlix gives the SOC analyst one case workspace instead of four disconnected tools:
 
-Each investigation is represented as a directed, typed incident graph. Literal identities are removed
-from its canonical fingerprint so structurally similar attacks against different users and IP addresses
-can still match.
+- **Raw telemetry first**, because the source events remain the ground truth
+- **Deterministic evidence**, including the rules and attack-chain transitions that created the case
+- **Behavioral context**, showing why this session differs from the identity's baseline
+- **Incident topology**, progressively revealing the persisted provenance graph
+- **Similar incidents**, comparing attack structure even when identities and IP addresses differ
+- **Interpretation report and chat**, grounded in a frozen, bounded incident context
 
-The graph layer applies Weisfeiler-Lehman relabeling, sublinear term frequency, optional TF-IDF, and
-cosine similarity over cumulative graph-feature histograms:
+## A Very Important Reality Check
 
-```text
-similarity = 0.20 * semantic + 0.35 * local + 0.45 * extended
-```
+ThreatFlix is currently a **student project and research-grade demo**, not a hosted security product.
 
-Similarity is evidence of structural resemblance, not attacker attribution.
+There is no public ThreatFlix backend waiting patiently on the internet. Cloning the frontend and clicking
+around will not summon a production SOC platform from the void. You need to run the backend, model
+service, database, and optional Ollama layer locally.
 
-### LLM Interpretation Layer
+Could we host and operate it properly? Certainly.
 
-The local Ollama model receives a bounded, persisted context containing deterministic findings, selected
-raw telemetry, UEBA output, and similar incidents. It produces a structured incident report and answers
-analyst questions with source IDs. It cannot change investigation scores or create investigations.
+Would you like to fund the backend? The server has reviewed the proposal and is extremely supportive.
 
-## Quick Start
+Until then, treat ThreatFlix as an explainable architecture demonstration: reproducible, inspectable, and
+promising, but not something to place between your company and an actual attacker on a Friday evening.
 
-### Prerequisites
+## Run The Demo Locally
 
-- Bun
-- Node.js/npm
-- Python 3.12 and `uv`
-- Ollama, if report generation and SOC chat are required
-
-### 1. Backend
+You need Bun, Node.js/npm, Python 3.12 with `uv`, and optionally Ollama.
 
 ```powershell
-cd Backend
-npm install
-Copy-Item .env.example .env
-```
-
-Set a non-default `JWT_SECRET` in `Backend/.env`, then:
-
-```powershell
-npm run seed:demo
-npm run dev
-```
-
-The API runs at `http://127.0.0.1:8000`.
-
-### 2. Runtime UEBA Service
-
-```powershell
+# Terminal 1: runtime UEBA service
 cd Backend/models/service
 uv sync
 uv run uvicorn app:app --host 127.0.0.1 --port 8001
-```
 
-The service loads `artifacts/ueba_bundle.joblib` at startup and exposes:
+# Terminal 2: backend and reproducible attacked customer
+cd Backend
+npm install
+Copy-Item .env.example .env
+# Set JWT_SECRET in .env
+npm run seed:demo
+npm run dev
 
-- `GET /health`
-- `POST /score`
-
-### 3. Frontend
-
-```powershell
+# Terminal 3: frontend
 cd FrontEnd
 npm install
 npm run dev -- --host 127.0.0.1
@@ -163,99 +127,81 @@ npm run dev -- --host 127.0.0.1
 
 Open `http://127.0.0.1:5173/dashboard`.
 
-### 4. Optional Ollama Reports
+Demo account:
 
-```powershell
-ollama serve
-ollama pull gemma3n:e2b
+```text
+email:    demo.customer@threatflix.local
+password: ThreatFlixDemo!2026
 ```
 
-Set `OLLAMA_MODEL=gemma3n:e2b` in `Backend/.env`.
+The seed recreates a normal identity baseline, an active multi-stage takeover, historical comparison
+incidents, graph fingerprints, UEBA enrichment when available, and an example analyst report.
 
-## Demo Customer
+## Release Notes
 
-Seed the reproducible V1 demo with:
+### `1.0.0` - Explainable Investigation System
 
-```powershell
-cd Backend
-npm run seed:demo
+`1.0.0` changes ThreatFlix from an alert-oriented prototype into a complete investigation experience.
+
+**What improved**
+
+- Replaced LLM-led detection with a deterministic investigation authority
+- Added identity-focused evidence rules, correlation, attack stages, and chain scoring
+- Added a reproducible 21-feature UEBA pipeline and promoted runtime ensemble
+- Added bounded ML fusion so behavioral scoring cannot overrule deterministic evidence
+- Added canonical incident graphs and Weisfeiler-Lehman structural similarity
+- Added cross-incident topology comparison
+- Added local Ollama incident reports and source-grounded SOC chat
+- Redesigned the dashboard around raw telemetry and deterministic evidence
+- Added an animated, lazy-loaded provenance graph explorer
+- Added a reproducible demo customer under active attack
+- Expanded automated coverage across the backend, ML workspace, and runtime model service
+
+**Known limits**
+
+- Synthetic UEBA training and evaluation data
+- Fixed IST work-hour assumption
+- SQLite persistence and local-only deployment
+- Batch-trained anomaly models
+- Local Ollama without production model governance
+- No hosted backend, despite the frontend looking rather ready to have one
+
+### `v0.0.1` - Prototype
+
+The first release proved the basic loop:
+
+```text
+SDK event -> backend -> alert -> dashboard
 ```
 
-| Field | Value |
-| --- | --- |
-| Login | `demo.customer@threatflix.local` |
-| Password | `ThreatFlixDemo!2026` |
-| Project | `demo-customer-acme-india` |
-| Victim identity | `priya.sharma@acme-demo.in` |
+It established event ingestion, authentication, SQLite storage, alert presentation, and the first demo
+scenarios. Detection and explanation were still tightly coupled to an LLM-oriented prototype, with no
+deterministic investigation authority, behavioral model, incident graph, or similarity layer.
 
-The seed recreates normal user history, a multi-stage takeover, four historical comparison incidents,
-graph fingerprints, UEBA enrichment when available, and a completed example report/chat thread.
+## Where To Go Next
 
-## Recommended Demo Flow
+- [Technical wiki](docs/wiki/Home.md) - mathematics, architecture, evaluation, finances, and roadmap
+- [Backend](Backend/) - deterministic investigation engine, persistence, APIs, graph layer, and LLM context
+- [Offline ML workspace](ML/) - reproducible UEBA training and evaluation
+- [Runtime ML service](Backend/models/service/) - promoted artifact scoring only
+- [Frontend](FrontEnd/) - analyst investigation workspace
+- [SDK](SDK/) - event capture client
+- [Releases](https://github.com/scienstien/threatFlix/releases) - version history
 
-1. Open the primary investigation and begin with raw telemetry.
-2. Show the deterministic evidence and observed attack chain.
-3. Explain that deterministic logic created the investigation.
-4. Show UEBA as bounded behavioral refinement, including its top feature deviations.
-5. Open the animated raw-node graph and explain the attack topology.
-6. Compare the incident with the structurally similar historical takeover.
-7. Read the interpretation report and ask one focused SOC-chat question.
-8. Explain that optional intelligence layers fail open without losing the deterministic case.
+## Project Philosophy
 
-## Useful Backend Commands
+The most important output of a security system is not a score.
 
-```powershell
-npm test
-npm run typecheck
-npm run seed:demo
-npm run backfill:graph
-npm run evaluate:graph
-npm run export:graph-validation
-```
+It is a defensible answer to:
 
-## Offline ML Workflow
+> What happened, why do we believe it, and what should the analyst do next?
 
-Offline training is intentionally separated from runtime scoring:
+ThreatFlix `1.0.0` is our attempt to make that answer visible.
 
-```powershell
-cd ML
-uv sync
-uv run python generate_dataset.py
-uv run python train.py --confirm-training
-uv run python review_results.py
-```
+---
 
-Training output remains under `ML/outputs/` and is not committed. Promote only an explicitly reviewed
-`ueba_bundle.joblib` into `Backend/models/service/artifacts/`.
+<div align="center">
 
-## V1 Evaluation Boundary
+Built as a student project. Serious about explainability. Open to backend benefactors.
 
-The preserved UEBA evaluation is synthetic and reproducible. It is useful for validating pipeline logic,
-not for claiming production detection performance. Current limitations include synthetic training data,
-fixed IST work-hour assumptions, SQLite single-node persistence, batch-trained UEBA models, and a local
-Ollama runtime without enterprise model governance.
-
-## API Surface
-
-All backend routes use the `/api` prefix.
-
-| Area | Examples |
-| --- | --- |
-| Health | `GET /api/health` |
-| Events | `POST /api/events`, `GET /api/events/latest` |
-| Alerts | `GET /api/alerts`, `PATCH /api/alerts/:id` |
-| Investigations | `GET /api/investigations`, `GET /api/investigations/:id` |
-| Similarity | `GET /api/investigations/:id/similar` |
-| Reports | `GET /api/investigations/:id/report`, `POST /api/investigations/:id/report/regenerate` |
-| SOC chat | `GET /api/investigations/:id/chat`, `POST /api/investigations/:id/chat` |
-| Administration | `/api/admin`, `/api/apikeys`, `/api/webhooks`, `/api/auth` |
-
-## Release Notes: 1.0.0
-
-V1 establishes the complete explainable investigation architecture: deterministic authority, bounded UEBA
-refinement, cross-incident graph similarity, local LLM interpretation, a reproducible demo tenant, and a
-redesigned analyst workspace.
-
-## License
-
-MIT
+</div>
