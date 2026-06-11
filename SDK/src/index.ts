@@ -19,8 +19,10 @@ import {
   SecurityAIConfig,
   AuthEventDetails,
   ReportDetails,
-  LogDetails
-} from './types';
+  LogDetails,
+  SecurityDeliveryResult,
+  SecurityEventDetails
+} from './types.js';
 
 export class SecurityAI {
   private config: SecurityAIConfig;
@@ -74,34 +76,53 @@ export class SecurityAI {
   }
 
   /**
+   * Emit any canonical ThreatFlix event and await backend acknowledgement.
+   * This is useful for domain events such as MFA changes, API-key creation,
+   * privilege changes, and data exports.
+   */
+  public event(eventType: EventType | string, details: SecurityEventDetails): Promise<SecurityDeliveryResult | undefined> {
+    return this._sendEvent(eventType, details);
+  }
+
+  /**
    * Internal method: Normalize event details and send to backend
    * This is the core of the SDK - everything funnels through here
    */
-  private _sendEvent(eventType: EventType | string, details: Record<string, unknown>): void {
+  private async _sendEvent(
+    eventType: EventType | string,
+    details: Record<string, unknown>
+  ): Promise<SecurityDeliveryResult | undefined> {
     try {
+      const detailsMetadata = (details.metadata as Record<string, unknown> | undefined) ?? {};
       // Build the canonical event payload
       const event: SecurityEvent = {
         projectId: this.config.projectId,
         event: eventType,
-        timestamp: new Date().toISOString(),
+        user: String(details.user ?? detailsMetadata.user ?? "unknown"),
+        ip: String(details.ip ?? detailsMetadata.ip ?? "unknown"),
+        service: String(details.service ?? detailsMetadata.service ?? "unknown"),
+        timestamp: typeof details.timestamp === "string" ? details.timestamp : new Date().toISOString(),
         metadata: {
           appVersion: this.config.appVersion || 'unknown',
           hostname: this.config.hostname || 'unknown',
           userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-          ...(details.metadata as Record<string, unknown>)
+          ...detailsMetadata
         }
       };
 
-      // Spread in optional fields from details
-      if (details.user) event.user = details.user as string;
-      if (details.ip) event.ip = details.ip as string;
-      if (details.service) event.service = details.service as string;
+      if (typeof details.severity === "string") event.severity = details.severity;
+      if (typeof details.sessionId === "string") event.sessionId = details.sessionId;
+      if (details.geoLocation && typeof details.geoLocation === "object") {
+        event.geoLocation = details.geoLocation as SecurityEvent["geoLocation"];
+      }
+      if (Array.isArray(details.tags)) event.tags = details.tags as string[];
 
       // Send to backend
-      this._post('/events', event);
+      return await this._post('/events', event);
     } catch (error) {
       console.error('[SecurityAI] Failed to send event:', error);
       // Fail silently to avoid breaking the host application
+      return undefined;
     }
   }
 
@@ -109,30 +130,54 @@ export class SecurityAI {
    * HTTP POST helper - sends event to backend
    * Team A should expose POST /events endpoint
    */
-  private _post(endpoint: string, payload: SecurityEvent): void {
+  private async _post(endpoint: string, payload: SecurityEvent): Promise<SecurityDeliveryResult | undefined> {
     // Use fetch if available, else fall back to XMLHttpRequest
     if (typeof fetch !== 'undefined') {
-      fetch(`${this.backendUrl}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.apiKey}`
-        },
-        body: JSON.stringify(payload)
-      }).catch((error) => {
+      try {
+        const response = await fetch(`${this.backendUrl}${endpoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.config.apiKey}`,
+            ...this.config.headers,
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          console.warn(`[SecurityAI] Backend rejected event: ${response.status}`);
+          return undefined;
+        }
+        return await response.json() as SecurityDeliveryResult;
+      } catch (error) {
         // Fail silently - don't break the app if backend is down
         console.warn('[SecurityAI] Backend unreachable:', error);
-      });
+        return undefined;
+      }
     } else if (typeof XMLHttpRequest !== 'undefined') {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${this.backendUrl}${endpoint}`, true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.setRequestHeader('Authorization', `Bearer ${this.config.apiKey}`);
-      xhr.onerror = () => {
-        console.warn('[SecurityAI] Backend unreachable');
-      };
-      xhr.send(JSON.stringify(payload));
+      return new Promise((resolve) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${this.backendUrl}${endpoint}`, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', `Bearer ${this.config.apiKey}`);
+        for (const [name, value] of Object.entries(this.config.headers ?? {})) {
+          xhr.setRequestHeader(name, value);
+        }
+        xhr.onload = () => {
+          if (xhr.status < 200 || xhr.status >= 300) return resolve(undefined);
+          try {
+            resolve(JSON.parse(xhr.responseText) as SecurityDeliveryResult);
+          } catch {
+            resolve(undefined);
+          }
+        };
+        xhr.onerror = () => {
+          console.warn('[SecurityAI] Backend unreachable');
+          resolve(undefined);
+        };
+        xhr.send(JSON.stringify(payload));
+      });
     }
+    return undefined;
   }
 
   /**

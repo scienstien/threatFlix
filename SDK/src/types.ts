@@ -27,11 +27,20 @@ export enum EventType {
 export interface SecurityEvent {
   projectId: string;
   event: EventType | string;
-  user?: string;
-  ip?: string;
-  service?: string;
+  user: string;
+  ip: string;
+  service: string;
   timestamp: string;
   metadata?: Record<string, unknown>;
+  severity?: string;
+  sessionId?: string;
+  geoLocation?: {
+    lat: number;
+    lon: number;
+    country?: string;
+    city?: string;
+  };
+  tags?: string[];
 }
 
 /**
@@ -43,6 +52,27 @@ export interface SecurityAIConfig {
   backendUrl?: string;
   appVersion?: string;
   hostname?: string;
+  headers?: Record<string, string>;
+}
+
+/** Canonical optional fields accepted by the generic event API. */
+export interface SecurityEventDetails extends Record<string, unknown> {
+  user: string;
+  ip: string;
+  service: string;
+  timestamp?: string;
+  metadata?: Record<string, unknown>;
+  severity?: string;
+  sessionId?: string;
+  geoLocation?: SecurityEvent["geoLocation"];
+  tags?: string[];
+}
+
+/** Backend acknowledgement returned after a telemetry event is accepted. */
+export interface SecurityDeliveryResult {
+  inserted: number;
+  eventIds: string[];
+  errors?: Array<{ index: number; errors: unknown[] }>;
 }
 
 /**
