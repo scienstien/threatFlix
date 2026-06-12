@@ -17,6 +17,19 @@
 
 ---
 
+## Published Packages
+
+ThreatFlix publishes its reusable components through their native language registries. GitHub Packages is
+not the source of truth for these releases.
+
+| Package | Registry | Current version | Install | Purpose |
+| --- | --- | --- | --- | --- |
+| [`threatflix-sdk`](https://www.npmjs.com/package/threatflix-sdk) | npm | `1.1.1` | `npm install threatflix-sdk` | Sends canonical application security telemetry to ThreatFlix |
+| [`threatflix-ueba`](https://pypi.org/project/threatflix-ueba/) | PyPI | `0.0.1` | `pip install threatflix-ueba` | Runs the promoted UEBA ensemble scoring service |
+
+GitHub does not mirror npmjs or PyPI releases into the repository's **Packages** panel. Publishing the SDK
+there would create a second, differently scoped package rather than update `threatflix-sdk`.
+
 ## The Story
 
 Security telemetry is very good at telling you that *things happened*.
