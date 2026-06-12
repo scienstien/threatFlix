@@ -1,82 +1,201 @@
-# ThreatFlix TypeScript SDK
+# ThreatFlix SDK
 
-**Version 1.1.0**
+[![npm](https://img.shields.io/npm/v/threatflix-sdk?style=flat-square)](https://www.npmjs.com/package/threatflix-sdk)
+[![license](https://img.shields.io/npm/l/threatflix-sdk?style=flat-square)](https://github.com/scienstien/threatFlix)
 
-A small TypeScript client for sending normalized security telemetry to ThreatFlix without coupling the
-host application to detection logic.
+**Send security-relevant application events to ThreatFlix without embedding detection logic in your app.**
 
-## Design
+`threatflix-sdk` is a small TypeScript client for instrumenting authentication, identity, privilege, and
+data-access activity. It converts application actions into a canonical event contract and delivers them to
+ThreatFlix, where deterministic rules correlate the telemetry into investigations and optional UEBA,
+MITRE ATT&CK mapping, graph similarity, and LLM reporting add context.
 
-- Type-safe canonical event payloads
-- Automatic timestamp and application metadata
-- Generic canonical event delivery for application-specific security actions
-- Awaitable backend acknowledgements with accepted event IDs
-- Session, severity, geolocation, tags, and custom-header support
-- Fail-safe behavior: telemetry delivery failures do not break the host application
-- No local detection or investigation authority
+The SDK observes and transports. It never decides whether an event is malicious.
+
+```text
+Your application
+    -> threatflix-sdk
+    -> canonical security telemetry
+    -> ThreatFlix deterministic investigation engine
+    -> UEBA + ATT&CK + incident graph + analyst report
+```
 
 ## Install
 
-The package is published publicly through npm:
-
-```powershell
-npm install @scienstien/threatflix-sdk@1.1.0
+```bash
+npm install threatflix-sdk
 ```
 
-## Authentication Event
+## Quick Start
 
 ```typescript
-import SecurityAI from "@scienstien/threatflix-sdk";
+import SecurityAI from "threatflix-sdk";
 
-const security = new SecurityAI({
-  apiKey: "your-api-key",
-  projectId: "your-project",
+const threatflix = new SecurityAI({
+  apiKey: process.env.THREATFLIX_API_KEY!,
+  projectId: "northstar-identity",
   backendUrl: "http://127.0.0.1:8000/api",
+  appVersion: "2.4.0",
+  hostname: "identity-api-01",
 });
 
-await security.auth.failedLogin({
-  user: "analyst@example.com",
+await threatflix.auth.failedLogin({
+  user: "priya@example.com",
   ip: "203.0.113.10",
   service: "identity",
+  metadata: { reason: "invalid_password" },
 });
 ```
 
-## Canonical Application Event
+ThreatFlix receives a normalized event with the project, event type, timestamp, source identity, service,
+and application metadata. Your application remains unaware of rules, anomaly models, and investigations.
 
-Use `event(...)` for domain telemetry such as MFA changes, privilege changes, API-key creation, and
-data exports. The returned event IDs can be used to confirm that ThreatFlix accepted the telemetry.
+## Emit Domain Events
+
+Use `event()` for any security-relevant action in your application:
 
 ```typescript
-const delivery = await security.event("api_key_created", {
-  user: "analyst@example.com",
+const delivery = await threatflix.event("api_key_created", {
+  user: "priya@example.com",
   ip: "203.0.113.10",
   service: "identity",
   sessionId: "session-42",
   severity: "high",
   tags: ["identity", "persistence"],
-  metadata: { scope: "tenant:export" },
+  metadata: {
+    scope: "tenant:export",
+    keyType: "service-account",
+  },
 });
 
 console.log(delivery?.eventIds);
 ```
 
-## Release Notes
+Useful event names include:
 
-### `1.1.0`
+- `failed_login`, `successful_login`, and `password_reset`
+- `mfa_disabled` and `mfa_failure`
+- `privilege_change`
+- `api_key_created`
+- `data_export`
+- application-specific canonical event names
 
-- Added generic canonical event delivery
-- Added awaitable backend acknowledgements
-- Added session, severity, geolocation, tags, and custom-header support
-- Corrected the documented ThreatFlix API base URL
-- Added canonical delivery tests and explicit ESM package metadata
+## What Gets Sent
+
+Every SDK method produces the same canonical telemetry contract:
+
+```json
+{
+  "projectId": "northstar-identity",
+  "event": "api_key_created",
+  "user": "priya@example.com",
+  "ip": "203.0.113.10",
+  "service": "identity",
+  "timestamp": "2026-06-12T14:30:00.000Z",
+  "sessionId": "session-42",
+  "severity": "high",
+  "tags": ["identity", "persistence"],
+  "metadata": {
+    "appVersion": "2.4.0",
+    "hostname": "identity-api-01",
+    "scope": "tenant:export"
+  }
+}
+```
+
+## API
+
+### Configuration
+
+```typescript
+const threatflix = new SecurityAI({
+  apiKey: "required-tenant-api-key",
+  projectId: "required-project-id",
+  backendUrl: "http://127.0.0.1:8000/api",
+  appVersion: "optional-application-version",
+  hostname: "optional-host-identifier",
+  headers: { "X-Correlation-ID": "optional-custom-header" },
+});
+```
+
+### Authentication Helpers
+
+```typescript
+await threatflix.auth.failedLogin({ user, ip, service, metadata });
+await threatflix.auth.successfulLogin({ user, ip, service, metadata });
+await threatflix.auth.passwordReset({ user, ip, service, metadata });
+```
+
+### Generic Event Delivery
+
+```typescript
+await threatflix.event(eventName, {
+  user,
+  ip,
+  service,
+  timestamp,
+  sessionId,
+  severity,
+  geoLocation,
+  tags,
+  metadata,
+});
+```
+
+### Compatibility Helpers
+
+```typescript
+threatflix.log({ message: "API quota exceeded", level: "warning" });
+threatflix.report({ title: "Manual report", description: "...", severity: "high" });
+threatflix.suspiciousIP("203.0.113.10", { source: "internal-watchlist" });
+```
+
+## Delivery Behavior
+
+- Events are sent to `POST {backendUrl}/events`.
+- The API key is sent as `Authorization: Bearer <apiKey>`.
+- `event()` and authentication helpers return the backend acknowledgement when accepted.
+- Delivery failures return `undefined` instead of breaking the host application.
+- The SDK performs no threat detection, scoring, or automatic investigation creation.
+
+Fail-safe delivery is intentional: security telemetry should not become a new production outage path.
+Applications that require guaranteed delivery should inspect acknowledgements and add their own durable queue.
+
+## What Changed
+
+### `1.1.1` - Package-page documentation
+
+- Rewrote the npm README around the actual ThreatFlix integration workflow.
+- Added canonical payload, API, delivery behavior, architecture, and limitation documentation.
+- Corrected the public npm package name and installation examples.
+
+### `1.1.0` - Canonical telemetry delivery
+
+- Added `event()` for arbitrary identity and application security actions.
+- Added awaitable backend acknowledgements containing accepted event IDs.
+- Added `sessionId`, `severity`, geolocation, tags, and custom-header support.
+- Added explicit ESM exports and published TypeScript declarations.
+- Added canonical event-delivery tests.
+- Corrected the documented ThreatFlix API base URL.
+
+Compared with `0.0.1`, version `1.1.0` turns the original authentication-event prototype into a general
+application telemetry SDK suitable for feeding ThreatFlix deterministic investigations.
+
+## Scope And Limitations
+
+This SDK is part of the student-built ThreatFlix project. It is useful for demos, experimentation, and
+studying explainable identity-threat investigation pipelines. The ThreatFlix backend is not provided as a
+hosted commercial service, and this package should not be treated as a replacement for a production
+telemetry queue or security platform.
 
 ## Development
 
-```powershell
+```bash
 npm install
-npm run build
 npm test
+npm run build
+npm pack --dry-run
 ```
 
-The SDK only captures and transports telemetry. ThreatFlix creates investigations in the backend using
-deterministic evidence, then optionally enriches them with UEBA, graph similarity, and local LLM output.
+Source, backend, demo environment, and architecture documentation:
+[github.com/scienstien/threatFlix](https://github.com/scienstien/threatFlix)
