@@ -44,6 +44,7 @@ export const config = {
   analysisEventThreshold: Number(process.env.ANALYSIS_EVENT_THRESHOLD ?? 5),      // events before trigger
   analysisMaxPerMinutePerProject: Number(process.env.ANALYSIS_MAX_PER_MINUTE ?? 5),
   analysisGlobalMaxPerMinute: Number(process.env.ANALYSIS_GLOBAL_MAX_PER_MINUTE ?? 100),
+  demoDeferredAnalysis: process.env.THREATFLIX_DEMO_DEFER_ANALYSIS === "true",
 
   /** General API rate limiting */
   rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000),          // 1 min

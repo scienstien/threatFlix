@@ -1,14 +1,40 @@
 [project]
-name = "threatflix-ml-service"
-version = "1.0.0"
-description = "Runtime UEBA scoring service for ThreatFlix"
+name = "threatflix-ueba"
+version = "0.0.1"
+description = "ThreatFlix UEBA scoring runtime with deterministic-friendly anomaly scoring"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi==0.115.6",
     "joblib==1.4.2",
     "numpy==2.2.1",
+    "pydantic>=2.10,<3",
     "pyod==2.0.5",
     "scikit-learn==1.6.0",
     "uvicorn==0.34.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/scienstien/threatFlix"
+Repository = "https://github.com/scienstien/threatFlix"
+
+[project.scripts]
+threatflix-ueba-serve = "threatflix_ueba.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.26.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["threatflix_ueba"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"artifacts/ueba_bundle.joblib" = "threatflix_ueba/artifacts/ueba_bundle.joblib"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "threatflix_ueba",
+    "artifacts/ueba_bundle.joblib",
+    "README.md",
+    "pyproject.toml",
 ]

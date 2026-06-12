@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authenticateApiKey, authenticateJwt } from "../middleware/auth.ts";
 import { analyzeEvents } from "../ai/analyzer.ts";
 import { eventRepo } from "../db/repositories/eventRepository.ts";
+import { config } from "../config.ts";
 
 export const analyzeRouter = Router();
 
@@ -30,7 +31,9 @@ analyzeRouter.post("/", async (req, res) => {
   }
 
   try {
-    const alert = await analyzeEvents(requestedProjectId, events);
+    const bypassRateLimit =
+      config.nodeEnv !== "production" && body.demoMode === true;
+    const alert = await analyzeEvents(requestedProjectId, events, { bypassRateLimit });
     return res.json({ alert });
   } catch (error) {
     const message = (error as Error).message;

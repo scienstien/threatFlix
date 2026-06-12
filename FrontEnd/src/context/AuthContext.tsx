@@ -10,6 +10,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
+import { API_BASE } from "../api/client";
 
 export type Role = "admin" | "user";
 
@@ -52,6 +53,9 @@ function clearAuth(): void {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState | null>(loadAuth);
+  const demoEmbed =
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).get("embedDemo") === "1";
 
   // Sync to localStorage whenever auth changes
   useEffect(() => {
@@ -62,8 +66,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [auth]);
 
+  useEffect(() => {
+    if (!demoEmbed || auth) return;
+    fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "judge.demo@threatflix.local",
+        password: "JudgeDemo!2026",
+      }),
+    })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Demo login failed")))
+      .then((data) => {
+        const nextAuth = {
+          token: data.token,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          projectId: data.projectId,
+        } satisfies AuthState;
+        saveAuth(nextAuth);
+        setAuth(nextAuth);
+      })
+      .catch(() => {
+        // AppShell keeps the embed waiting instead of exposing a broken login frame.
+      });
+  }, [auth, demoEmbed]);
+
   const login = (newAuth: AuthState) => {
-    setAuth(newAuth); // useEffect above will persist it to localStorage
+    saveAuth(newAuth);
+    setAuth(newAuth);
   };
 
   const logout = () => {

@@ -106,6 +106,17 @@
 }
 
 .app-shell { min-height: 100vh; background: var(--bg-deep); }
+.demo-embed-loading {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  height: 100vh;
+  justify-content: center;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
 .app-sidebar {
   background: #080809;
   border-right: 1px solid var(--silver-line);
@@ -398,8 +409,112 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .inline-error, .global-error { color: var(--severity-critical); font-family: var(--font-mono); font-size: 0.62rem; }
 .inline-error { margin: 0; padding: 0 12px 8px; }
 .global-error { background: #180b0b; border: 1px solid #6b3030; bottom: 12px; left: 200px; padding: 8px 10px; position: fixed; z-index: 100; }
+.investigation-notification {
+  animation: notification-enter .28s ease-out both;
+  background: #121214;
+  border: 1px solid var(--silver-line);
+  border-left: 2px solid var(--severity-color, #fff);
+  bottom: 18px;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  min-width: 290px;
+  padding: 11px 13px;
+  position: fixed;
+  right: 18px;
+  text-align: left;
+  z-index: 120;
+}
+.investigation-notification span,
+.investigation-notification small {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: .58rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.investigation-notification strong { font-size: .78rem; margin: 5px 0 3px; }
+
+.integration-page { margin: 0 auto; max-width: 1240px; padding: 34px 38px 70px; }
+.integration-header {
+  align-items: flex-end;
+  border-bottom: 1px solid var(--silver-line);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 22px;
+}
+.integration-header h1 { font-size: 1.55rem; letter-spacing: -.025em; margin: 5px 0 5px; }
+.integration-header p { color: var(--text-secondary); margin: 0; max-width: 680px; }
+.integration-project { align-items: flex-end; display: flex; flex-direction: column; gap: 5px; }
+.integration-project span { color: var(--text-muted); font-family: var(--font-mono); font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; }
+.integration-project code { color: var(--text-secondary); font-family: var(--font-mono); font-size: .68rem; }
+.integration-steps { display: grid; grid-template-columns: 1fr 1.35fr; margin-top: 24px; }
+.integration-step { border: 1px solid var(--silver-line); display: grid; grid-template-columns: 42px 1fr; min-height: 250px; }
+.integration-key-step { border-right: 0; }
+.integration-event-step { border-top: 0; grid-column: 1 / -1; min-height: 210px; }
+.integration-step-number {
+  border-right: 1px solid var(--silver-line);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: .62rem;
+  padding-top: 19px;
+  text-align: center;
+}
+.integration-step-content { min-width: 0; padding: 18px 20px 20px; position: relative; }
+.integration-step-content h2 { font-size: .95rem; margin: 0 0 5px; }
+.integration-step-content > p { color: var(--text-muted); font-size: .73rem; margin: 0 0 17px; }
+.integration-step-content > p code { color: var(--text-secondary); font-family: var(--font-mono); }
+.integration-step-content pre {
+  background: #080809;
+  border: 1px solid #28282c;
+  color: #d8d8dc;
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  line-height: 1.75;
+  margin: 0;
+  overflow: auto;
+  padding: 14px;
+  white-space: pre-wrap;
+}
+.integration-key-form { display: flex; gap: 7px; }
+.integration-key-form input {
+  background: #080809;
+  border: 1px solid var(--silver-line);
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+}
+.integration-key-form button, .integration-generated-key button, .integration-copy-code {
+  background: #e8e8e9;
+  border: 1px solid #fff;
+  color: #080809;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: .62rem;
+  padding: 8px 10px;
+}
+.integration-generated-key {
+  background: #111312;
+  border: 1px solid #52645a;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr auto;
+  margin-top: 13px;
+  padding: 11px;
+}
+.integration-generated-key div { display: flex; flex-direction: column; gap: 2px; }
+.integration-generated-key span { color: var(--text-muted); font-family: var(--font-mono); font-size: .56rem; letter-spacing: .08em; text-transform: uppercase; }
+.integration-generated-key strong { font-size: .7rem; }
+.integration-generated-key code { color: #c7dacd; font-family: var(--font-mono); font-size: .64rem; grid-column: 1 / -1; overflow-wrap: anywhere; }
+.integration-copy-code { margin-top: 10px; }
+.integration-existing { border: 1px solid var(--silver-line); margin-top: 24px; padding: 14px; }
+.integration-key-row { align-items: center; border-top: 1px solid #28282c; display: grid; font-size: .7rem; gap: 12px; grid-template-columns: 1fr 1fr auto; padding: 10px 4px; }
+.integration-key-row code, .integration-key-row time { color: var(--text-muted); font-family: var(--font-mono); font-size: .62rem; }
 
 @keyframes silver-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes notification-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 1180px) {
   .case-layout { grid-template-columns: 230px minmax(0, 1fr); }
   .priority-grid, .secondary-grid { grid-template-columns: 1fr; }
@@ -411,6 +526,11 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   .app-main { margin-left: 0; padding-top: 44px; }
   .top-bar { top: 44px; }
   .case-layout { display: block; }
+  .integration-page { padding: 22px 14px; }
+  .integration-header { align-items: flex-start; display: block; }
+  .integration-project { align-items: flex-start; margin-top: 16px; }
+  .integration-steps { display: block; }
+  .integration-step, .integration-key-step, .integration-event-step { border: 1px solid var(--silver-line); margin-top: 10px; }
   .case-queue { border-bottom: 1px solid var(--silver-line); border-right: 0; max-height: 250px; overflow: auto; }
   .case-header { display: block; }
   .case-header-actions { justify-content: flex-start; margin-top: 12px; }

@@ -2,7 +2,7 @@ import unittest
 
 from pydantic import ValidationError
 
-from contracts import UEBA_SCHEMA_VERSION, UebaScoreRequest, UebaScoreResponse
+from threatflix_ueba.contracts import UEBA_SCHEMA_VERSION, UebaScoreRequest, UebaScoreResponse
 
 
 class UebaContractTests(unittest.TestCase):

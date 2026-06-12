@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getAlertById,
   getAlerts,
@@ -19,17 +19,26 @@ export function DashboardPage() {
   const [selected, setSelected] = useState<Alert | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notification, setNotification] = useState<Alert | null>(null);
+  const knownAlertIds = useRef<Set<string>>(new Set());
 
-  const load = useCallback(async (preferredId?: string) => {
+  const load = useCallback(async (preferredId?: string, silent = false) => {
     if (!projectId) return;
-    setError(null);
+    if (!silent) setError(null);
     try {
       const [{ alerts: nextAlerts }, { events: nextEvents }] = await Promise.all([
         getAlerts(projectId),
         getLatestEvents(projectId),
       ]);
+      const newest = nextAlerts.find((alert) => !knownAlertIds.current.has(alert.id));
+      if (knownAlertIds.current.size > 0 && newest) setNotification(newest);
+      knownAlertIds.current = new Set(nextAlerts.map((alert) => alert.id));
       setAlerts(nextAlerts);
       setEvents(nextEvents);
+      if (silent) {
+        setError(null);
+        return;
+      }
       const selectedId = preferredId ?? nextAlerts.find((alert) => alert.status !== "resolved")?.id;
       if (selectedId) {
         const detail = await getAlertById(selectedId);
@@ -37,6 +46,7 @@ export function DashboardPage() {
       } else {
         setSelected(null);
       }
+      setError(null);
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
@@ -47,6 +57,17 @@ export function DashboardPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => load(undefined, true), 2_000);
+    return () => window.clearInterval(timer);
+  }, [load]);
+
+  useEffect(() => {
+    if (!notification) return;
+    const timer = window.setTimeout(() => setNotification(null), 9_000);
+    return () => window.clearTimeout(timer);
+  }, [notification]);
 
   async function selectInvestigation(alert: Alert) {
     setSelected(alert);
@@ -88,6 +109,19 @@ export function DashboardPage() {
         onRefresh={() => load(selected?.id)}
         onOpenInvestigation={openInvestigation}
       />
+      {notification ? (
+        <button
+          className={`investigation-notification severity-${notification.severity}`}
+          onClick={() => {
+            openInvestigation(notification.id);
+            setNotification(null);
+          }}
+        >
+          <span>New investigation</span>
+          <strong>{notification.attack}</strong>
+          <small>{notification.severity} · open in workspace</small>
+        </button>
+      ) : null}
       {error ? <div className="global-error">{error}</div> : null}
     </div>
   );

@@ -19,6 +19,10 @@ export function Sidebar() {
         <Link className={location.pathname.startsWith("/dashboard") ? "is-active" : ""} to="/dashboard">
           <span className="nav-glyph">[]</span><span>Case desk</span>
         </Link>
+        <span className="sidebar-label">Developer</span>
+        <Link className={location.pathname.startsWith("/integration") ? "is-active" : ""} to="/integration">
+          <span className="nav-glyph">&lt;/&gt;</span><span>Integration</span>
+        </Link>
         {isAdmin ? (
           <>
             <span className="sidebar-label">Platform</span>

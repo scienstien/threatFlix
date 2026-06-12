@@ -3,6 +3,7 @@ import { authenticateApiKey, authenticateJwt } from "../middleware/auth.ts";
 import { validateEventPayload } from "../middleware/validation.ts";
 import { eventRepo } from "../db/repositories/eventRepository.ts";
 import { analyzeEvents, shouldAutoAnalyze } from "../ai/analyzer.ts";
+import { config } from "../config.ts";
 import type { SecurityEvent } from "../types/events.ts";
 
 export const eventsRouter = Router();
@@ -48,7 +49,12 @@ eventsRouter.post("/", async (req, res) => {
     insertedIds.push(event.id);
   }
 
-  if (insertedIds.length > 0 && shouldAutoAnalyze(auth.projectId)) {
+  const deferDemoAnalysis =
+    config.nodeEnv !== "production" &&
+    (config.demoDeferredAnalysis ||
+      req.header("X-ThreatFlix-Demo-Deferred") === "true");
+
+  if (insertedIds.length > 0 && !deferDemoAnalysis && shouldAutoAnalyze(auth.projectId)) {
     analyzeEvents(auth.projectId).catch((error) => {
       console.error("Auto-analysis failed:", (error as Error).message);
     });
