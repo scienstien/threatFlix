@@ -1,7 +1,7 @@
 {
-  "name": "@scienstien/threatflix-sdk",
-  "version": "1.1.0",
-  "description": "Thin TypeScript SDK for delivering canonical security telemetry to ThreatFlix",
+  "name": "threatflix-sdk",
+  "version": "1.1.1",
+  "description": "Canonical security telemetry SDK for ThreatFlix identity-threat investigations",
   "type": "module",
   "publishConfig": {
     "access": "public",
