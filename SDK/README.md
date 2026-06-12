@@ -17,10 +17,9 @@ host application to detection logic.
 
 ## Install
 
-The package is published through GitHub Packages:
+The package is published publicly through npm:
 
 ```powershell
-npm config set @scienstien:registry https://npm.pkg.github.com
 npm install @scienstien/threatflix-sdk@1.1.0
 ```
 

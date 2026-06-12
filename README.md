@@ -9,7 +9,7 @@
 [![Frontend](https://img.shields.io/badge/frontend-React%2019-f2f2f2?style=flat-square&labelColor=111111)](FrontEnd/)
 [![ML](https://img.shields.io/badge/UEBA-Isolation%20Forest%20%2B%20ECOD%20%2B%20COPOD-f2f2f2?style=flat-square&labelColor=111111)](ML/)
 [![PyPI](https://img.shields.io/pypi/v/threatflix-ueba?style=flat-square&labelColor=111111&color=f2f2f2)](https://pypi.org/project/threatflix-ueba/)
-[![SDK](https://img.shields.io/badge/SDK-1.1.0-f2f2f2?style=flat-square&labelColor=111111)](https://github.com/scienstien/threatFlix/pkgs/npm/threatflix-sdk)
+[![SDK](https://img.shields.io/badge/SDK-1.1.0-f2f2f2?style=flat-square&labelColor=111111)](https://www.npmjs.com/package/@scienstien/threatflix-sdk)
 
 **A student-built, explainable identity-threat investigation system.**
 

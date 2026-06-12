@@ -4,7 +4,8 @@
   "description": "Thin TypeScript SDK for delivering canonical security telemetry to ThreatFlix",
   "type": "module",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "repository": {
     "type": "git",
