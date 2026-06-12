@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ThreatFlix Judge Presentation</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { background:#080909; color:#f1f3f2; font-family:Inter,Segoe UI,sans-serif; height:100vh; margin:0; overflow:hidden; }
+      header { align-items:center; border-bottom:1px solid #303432; display:flex; height:54px; justify-content:space-between; padding:0 18px; }
+      header div { align-items:center; display:flex; gap:10px; }
+      strong { font-size:13px; letter-spacing:.02em; }
+      span { color:#8f9894; font-family:monospace; font-size:9px; letter-spacing:.08em; text-transform:uppercase; }
+      b { background:#6d967d; border-radius:50%; box-shadow:0 0 0 5px #6d967d18; height:6px; width:6px; }
+      main { display:grid; gap:7px; grid-template-columns:57% 43%; height:calc(100vh - 54px); padding:7px; }
+      section { background:#111312; border:1px solid #303432; display:flex; flex-direction:column; min-width:0; overflow:hidden; }
+      section div { align-items:center; border-bottom:1px solid #303432; display:flex; height:27px; justify-content:space-between; padding:0 8px; }
+      iframe { border:0; flex:1; height:100%; width:100%; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div><b></b><strong>THREATFLIX · LIVE CUSTOMER ATTACK DEMONSTRATION</strong></div>
+      <span>Northstar application traffic → SDK telemetry → SOC investigation</span>
+    </header>
+    <main>
+      <section><div><span>Customer application</span><span>127.0.0.1:4100</span></div><iframe src="/"></iframe></section>
+      <section><div><span>ThreatFlix analyst workspace</span><span>127.0.0.1:5173</span></div><iframe src="http://127.0.0.1:5173/dashboard?embedDemo=1"></iframe></section>
+    </main>
+  </body>
+</html>

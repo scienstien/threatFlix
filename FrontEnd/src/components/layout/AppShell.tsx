@@ -10,8 +10,14 @@ import { TopBar } from "./TopBar";
 
 export function AppShell() {
   const { isAuthenticated } = useAuth();
+  const demoEmbed =
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).get("embedDemo") === "1";
 
   if (!isAuthenticated) {
+    if (demoEmbed) {
+      return <div className="demo-embed-loading">Connecting judge demo to ThreatFlix...</div>;
+    }
     return <Navigate to="/login" replace />;
   }
 

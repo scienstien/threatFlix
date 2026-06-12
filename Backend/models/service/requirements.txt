@@ -4,3 +4,4 @@ scikit-learn==1.6.0
 numpy==2.2.1
 joblib==1.4.2
 pyod==2.0.5
+pydantic>=2.10,<3

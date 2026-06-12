@@ -23,6 +23,7 @@ Backend/models/service/artifacts/*
 !Backend/models/service/artifacts/ueba_bundle.joblib
 Backend/check_db.ts
 Backend/test_attack.ps1
+JudgeDemo/recordings/
 
 # Generated project documents. Keep README files as the public documentation.
 docs/

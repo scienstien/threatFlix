@@ -8,6 +8,8 @@
 [![Backend](https://img.shields.io/badge/backend-Bun%20%2B%20SQLite-f2f2f2?style=flat-square&labelColor=111111)](Backend/)
 [![Frontend](https://img.shields.io/badge/frontend-React%2019-f2f2f2?style=flat-square&labelColor=111111)](FrontEnd/)
 [![ML](https://img.shields.io/badge/UEBA-Isolation%20Forest%20%2B%20ECOD%20%2B%20COPOD-f2f2f2?style=flat-square&labelColor=111111)](ML/)
+[![PyPI](https://img.shields.io/pypi/v/threatflix-ueba?style=flat-square&labelColor=111111&color=f2f2f2)](https://pypi.org/project/threatflix-ueba/)
+[![SDK](https://img.shields.io/badge/SDK-1.1.0-f2f2f2?style=flat-square&labelColor=111111)](https://github.com/scienstien/threatFlix/pkgs/npm/threatflix-sdk)
 
 **A student-built, explainable identity-threat investigation system.**
 
@@ -105,6 +107,25 @@ promising, but not something to place between your company and an actual attacke
 
 You need Bun, Node.js/npm, Python 3.12 with `uv`, and optionally Ollama.
 
+For the full judge flow, start the isolated Northstar customer, ThreatFlix, and the trained UEBA sidecar:
+
+```powershell
+cd JudgeDemo
+.\start_demo.ps1
+```
+
+Northstar starts disconnected on purpose. Open `http://127.0.0.1:5173/integration`, generate a
+tenant-scoped key, place it in `JudgeDemo/threatflix.ts`, and then run:
+
+```powershell
+python attack_runner.py --scenario all --delay 0.25
+```
+
+The runner calls only Northstar application endpoints. ThreatFlix receives the resulting SDK telemetry,
+creates deterministic investigations, enriches them with UEBA, and generates graph fingerprints.
+
+For the seeded investigation workspace without the live integration walkthrough:
+
 ```powershell
 # Terminal 1: runtime UEBA service
 cd Backend/models/service
@@ -183,9 +204,11 @@ deterministic investigation authority, behavioral model, incident graph, or simi
 - [Technical wiki](docs/wiki/Home.md) - mathematics, architecture, evaluation, finances, and roadmap
 - [Backend](Backend/) - deterministic investigation engine, persistence, APIs, graph layer, and LLM context
 - [Offline ML workspace](ML/) - reproducible UEBA training and evaluation
-- [Runtime ML service](Backend/models/service/) - promoted artifact scoring only
+- [Published UEBA runtime](https://pypi.org/project/threatflix-ueba/) - installable promoted artifact scorer
+- [Runtime ML service](Backend/models/service/) - packaged runtime source and compatibility service
 - [Frontend](FrontEnd/) - analyst investigation workspace
-- [SDK](SDK/) - event capture client
+- [SDK](SDK/) - source for the published `@scienstien/threatflix-sdk` event capture client
+- [Judge demo](JudgeDemo/) - reproducible Northstar integration and attack flow
 - [Releases](https://github.com/scienstien/threatFlix/releases) - version history
 
 ## Project Philosophy

@@ -1,10 +1,11 @@
 import unittest
+from importlib import import_module
 
 import numpy as np
 from fastapi import HTTPException
 
-import app
-from contracts import UEBA_SCHEMA_VERSION, UebaScoreRequest
+app = import_module("threatflix_ueba.app")
+from threatflix_ueba.contracts import UEBA_SCHEMA_VERSION, UebaScoreRequest
 
 
 class FakeIsolationForest:

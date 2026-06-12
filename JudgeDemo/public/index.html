@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Northstar Identity Cloud</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">N</span>
+        <div><strong>Northstar</strong><small>Identity Cloud</small></div>
+      </div>
+      <nav>
+        <span class="nav-label">Workspace</span>
+        <a class="active"><i>01</i>Identity operations</a>
+        <a><i>02</i>Workforce directory</a>
+        <a><i>03</i>Access policies</a>
+        <a><i>04</i>API credentials</a>
+        <a><i>05</i>Data exports</a>
+        <span class="nav-label">System</span>
+        <a><i>06</i>Audit log</a>
+        <a><i>07</i>Integrations</a>
+      </nav>
+      <div class="tenant">
+        <span class="avatar">NS</span>
+        <div><strong>Northstar Demo</strong><small>Enterprise tenant</small></div>
+      </div>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">Identity operations / Live environment</p>
+          <h1>Good morning, Northstar.</h1>
+          <p class="subhead">Authentication and administrative activity across your tenant.</p>
+        </div>
+        <div class="header-actions">
+          <span class="environment"><b></b> Production</span>
+          <button id="resetButton">Reset view</button>
+          <a href="http://127.0.0.1:5173/dashboard" target="_blank">Open ThreatFlix ↗</a>
+        </div>
+      </header>
+
+      <section class="status-strip" id="statusStrip">
+        <div class="status-orb"><span></span></div>
+        <div class="status-copy">
+          <p class="eyebrow">Live demo state</p>
+          <h2 id="statusTitle">Waiting for attack runner</h2>
+          <p id="statusDetail">Northstar is operating normally. Start the Python runner to generate real application traffic.</p>
+        </div>
+        <div class="status-stats">
+          <div><span>SDK events accepted</span><strong id="deliveryCount">0</strong></div>
+          <div><span>Investigations created</span><strong id="investigationCount">0</strong></div>
+          <div><span>Telemetry route</span><strong class="route">/api/events</strong></div>
+        </div>
+      </section>
+
+      <section class="layout">
+        <div class="primary-column">
+          <article class="panel activity-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">Operational telemetry</p><h2>Live activity stream</h2></div>
+              <span class="live"><b></b> Live</span>
+            </div>
+            <div class="activity-header"><span>Time</span><span>Event</span><span>Identity / detail</span><span>Source</span><span>SDK</span></div>
+            <div class="activity-list" id="activityList"></div>
+          </article>
+
+          <div class="summary-grid">
+            <article class="panel compact-panel">
+              <div class="panel-heading"><div><p class="eyebrow">Access controls</p><h3>Authentication posture</h3></div><span>98.4%</span></div>
+              <div class="posture"><span style="--value: 98%"></span></div>
+              <div class="metric-row"><span>MFA coverage</span><strong>98.4%</strong></div>
+              <div class="metric-row"><span>Privileged identities</span><strong>14</strong></div>
+              <div class="metric-row"><span>Policies enforced</span><strong>32</strong></div>
+            </article>
+            <article class="panel compact-panel">
+              <div class="panel-heading"><div><p class="eyebrow">Directory</p><h3>Workforce identities</h3></div><span>18,420</span></div>
+              <div class="identity-row"><span class="avatar small">MS</span><div><strong>Maya Singh</strong><small>Security analyst · Bengaluru</small></div><em>Active</em></div>
+              <div class="identity-row"><span class="avatar small">LC</span><div><strong>Liam Chen</strong><small>Operations · Mumbai</small></div><em>Active</em></div>
+              <div class="identity-row"><span class="avatar small">SM</span><div><strong>Sofia Martin</strong><small>Engineering · Mumbai</small></div><em>Active</em></div>
+            </article>
+          </div>
+
+          <article class="panel investigation-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">ThreatFlix response</p><h2>Investigations created from this session</h2></div>
+              <a href="http://127.0.0.1:5173/dashboard" target="_blank">Inspect in SOC ↗</a>
+            </div>
+            <div id="investigationList" class="investigation-list">
+              <div class="empty-state">No investigations yet. Northstar’s telemetry remains quiet.</div>
+            </div>
+          </article>
+        </div>
+
+        <aside class="right-rail">
+          <article class="panel sdk-panel">
+            <div class="sdk-heading"><span class="tf-mark">TF</span><div><p class="eyebrow">Installed integration</p><h2>ThreatFlix SDK</h2></div><span class="connected" id="integrationState">Awaiting key</span></div>
+            <p class="sdk-description">Northstar emits canonical security telemetry. The attack runner never talks to ThreatFlix directly.</p>
+            <div class="code-window">
+              <div class="code-top"><span>threatflix.ts</span><span>SDK integration</span></div>
+              <pre><code><span class="muted">01</span> <span class="blue">const</span> threatflix = <span class="blue">new</span> SecurityAI({
+<span class="muted">02</span>   apiKey: <span class="green">THREATFLIX_API_KEY</span>,
+<span class="muted">03</span>   projectId: <span class="green">"judge-demo-northstar"</span>,
+<span class="muted">04</span>   backendUrl: <span class="green">"http://127.0.0.1:8000/api"</span>
+<span class="muted">05</span> });
+<span class="muted">06</span>
+<span class="muted">07</span> <span class="blue">await</span> threatflix.event(event, {
+<span class="muted">08</span>   user, ip, sessionId, metadata
+<span class="muted">09</span> });</code></pre>
+            </div>
+            <div class="delivery-block">
+              <div><span>Delivery</span><strong id="deliveryState"><b></b> Not configured</strong></div>
+              <div><span>Destination</span><strong>127.0.0.1:8000</strong></div>
+              <div><span>Isolation</span><strong>Tenant scoped</strong></div>
+            </div>
+          </article>
+
+          <article class="panel runner-panel">
+            <p class="eyebrow">Reproducible demo</p>
+            <h2>Five attack sequence</h2>
+            <p>Run this from a terminal while both websites are visible. Every action below hits Northstar endpoints.</p>
+            <div class="command"><code>python attack_runner.py --scenario all</code><button id="copyButton">Copy</button></div>
+            <ol>
+              <li><span>01</span>Brute-force takeover</li>
+              <li><span>02</span>Password spray</li>
+              <li><span>03</span>Credential stuffing</li>
+              <li><span>04</span>Privilege + persistence</li>
+              <li><span>05</span>Directory exfiltration</li>
+            </ol>
+          </article>
+        </aside>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

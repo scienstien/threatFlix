@@ -1,13 +1,14 @@
-# ThreatFlix Runtime ML Service
+# ThreatFlix UEBA Package
 
-**Version 1.0.0**
+**Version 0.0.1**
 
-This directory is the runtime-only UEBA scoring service used by the Bun backend.
+This directory contains the first packaged release of the ThreatFlix UEBA scoring runtime.
 
 It contains:
 
-- `app.py`: FastAPI scoring API
-- `contracts.py`: runtime request and response contracts
+- `threatflix_ueba/`: installable Python package
+- `app.py`: compatibility entrypoint for the local FastAPI service
+- `contracts.py`: compatibility re-export for local runtime contracts
 - `test_contracts.py`, `test_app.py`: runtime contract and scoring tests
 - `artifacts/ueba_bundle.joblib`: promoted trained UEBA bundle loaded at startup
 - `pyproject.toml`, `requirements.txt`, `uv.lock`, `.python-version`: local runtime environment metadata
@@ -29,13 +30,19 @@ The planned runtime artifact is promoted from an approved offline export and con
 The accompanying metadata file records the model version, configuration, training dataset summary, and
 evaluation summary.
 
-The runtime service:
+The packaged runtime:
 
 - loads artifacts only at startup
 - never trains, retrains, tunes, or overwrites artifacts
 - validates schema version and feature order before scoring
 - returns normalized detector scores, ensemble anomaly score, behavior score, and feature reasons
 - fails open to deterministic-only behavior when ML is unavailable or incompatible
+
+## Package Entry Points
+
+- importable module: `threatflix_ueba`
+- FastAPI app: `threatflix_ueba.app:app`
+- CLI server command: `threatflix-ueba-serve`
 
 The service only scores sessions supplied from an existing deterministic investigation. It must not create
 investigations independently.

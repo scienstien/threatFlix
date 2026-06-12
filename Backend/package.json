@@ -7,6 +7,7 @@
     "dev": "bun --watch src/server.ts",
     "start": "NODE_ENV=production bun src/server.ts",
     "seed:demo": "bun scripts/seed-demo-customer.ts",
+    "seed:judge-demo": "bun scripts/seed-judge-demo.ts",
     "backfill:graph": "bun scripts/backfill-graph-similarity.ts",
     "evaluate:graph": "bun scripts/evaluate-graph-similarity.ts",
     "export:graph-validation": "bun scripts/export-graph-validation-corpus.ts",

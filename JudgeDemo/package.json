@@ -1,0 +1,12 @@
+{
+  "name": "threatflix-judge-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch server.ts",
+    "start": "bun server.ts",
+    "attack": "python attack_runner.py --scenario all",
+    "record": "node record_demo.mjs"
+  }
+}
