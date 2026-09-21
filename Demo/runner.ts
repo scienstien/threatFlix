@@ -37,7 +37,7 @@ interface DemoOptions {
 function parseArgs(): DemoOptions {
   const args = process.argv.slice(2);
   const options: DemoOptions = {
-    backend: 'http://localhost:8000',
+    backend: 'http://localhost:8000/api',
     all: false,
     verbose: true,
     delay: 1000
@@ -75,8 +75,8 @@ async function runDemo(options: DemoOptions) {
 
   // Initialize SDK
   const security = new SecurityAI({
-    apiKey: 'demo-key',
-    projectId: 'demo-project',
+    apiKey: 'sk-demo-acme-india-identity-telemetry',
+    projectId: 'demo-customer-acme-india',
     backendUrl: options.backend,
     appVersion: '1.0.0',
     hostname: 'demo-machine'
